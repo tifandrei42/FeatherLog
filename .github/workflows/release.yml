@@ -1,0 +1,71 @@
+name: Release
+
+# Triggered by pushing a version tag, e.g.  git tag v1.0.0 && git push --tags
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-release:
+    name: Build & Publish Signed APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to create a GitHub Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests (gate the release)
+        run: flutter test
+
+      # --- Signing: secrets are configured under Settings > Secrets and variables > Actions ---
+      # KEYSTORE_BASE64  : base64 of your upload-keystore.jks  (base64 -w0 upload-keystore.jks)
+      # STORE_PASSWORD   : keystore password
+      # KEY_PASSWORD     : key password
+      # KEY_ALIAS        : key alias (e.g. upload)
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/upload-keystore.jks
+
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
+      - name: Build signed APK (per-ABI for smaller downloads)
+        run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/app/outputs/flutter-apk/*.apk
+            sbom.spdx.json
+          generate_release_notes: true # auto-changelog from merged PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Clean up secrets from the runner workspace (defensive)
+      - name: Cleanup signing material
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties

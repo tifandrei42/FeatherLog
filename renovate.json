@@ -1,0 +1,34 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "labels": ["dependencies"],
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Group all non-major Dart/Flutter updates into one PR",
+      "matchManagers": ["pub"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dart dependencies (non-major)"
+    },
+    {
+      "description": "Auto-merge low-risk GitHub Actions patch updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
+    },
+    {
+      "description": "Hold major updates for manual review",
+      "matchUpdateTypes": ["major"],
+      "addLabels": ["major-update"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": false
+  }
+}

@@ -1,0 +1,7 @@
+# Default owner for everything in the repo.
+# Replace @your-github-username with your handle.
+* @tifandrei42
+
+# You can scope ownership more narrowly as the project grows, e.g.:
+# /backend/   @your-github-username
+# /.github/   @your-github-username

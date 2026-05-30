@@ -1,0 +1,19 @@
+# Optional sync backend. Run with:  docker compose up -d
+# Data persists in ./pb_data (gitignored). Admin UI at http://localhost:8090/_/
+
+services:
+  pocketbase:
+    build: .
+    container_name: featherlog-sync
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./pb_data:/pb/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # In production, put this behind a reverse proxy (Caddy/Traefik) for TLS.
+    # See README in this folder for a Terraform/Ansible deploy sketch.
