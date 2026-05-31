@@ -1,0 +1,35 @@
+# Keep the Docker build context small and fast.
+# The image only needs the Dart/web sources + manifests; everything below is
+# either rebuilt inside the image, irrelevant to the web build, or secret.
+
+# Build outputs / caches (regenerated in-image)
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# VCS / CI / IDE
+.git/
+.github/
+.idea/
+*.iml
+.vscode/
+
+# Native platforms (not used by the web build)
+android/
+ios/
+
+# Optional self-hosted backend (separate image)
+backend/
+
+# Tests aren't needed to produce the runtime artifact
+test/
+
+# Docker meta
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Misc
+*.log
+.DS_Store

@@ -1,0 +1,23 @@
+# Build & run the FeatherLog web demo locally:
+#
+#   docker compose up --build      # build image + serve
+#   open http://localhost:8080
+#   docker compose down            # stop
+#
+# This serves the Flutter *web* build (a demo/preview). The shipping product is
+# the Android APK; see the release workflow. The optional sync backend has its
+# own compose file under backend/.
+
+services:
+  web:
+    build: .
+    image: featherlog-web
+    container_name: featherlog-web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
