@@ -1,0 +1,17 @@
+# Normalize all text files to LF in the repository.
+# Developed on Windows; CI runs on Linux. Without this, CRLF line endings get
+# committed and `dart format --set-exit-if-changed` fails on the Linux runner.
+* text=auto eol=lf
+
+# Explicitly treat known binary assets as binary (never normalize or text-diff).
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.ttf  binary
+*.otf  binary
+*.jar  binary
+*.keystore binary
+*.jks  binary
