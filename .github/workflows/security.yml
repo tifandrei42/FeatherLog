@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write # required to upload SARIF results to the Security tab
 
 jobs:
   dependency-review:
@@ -35,7 +36,8 @@ jobs:
           format: sarif
           output: trivy-results.sarif
       - name: Upload results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
+        continue-on-error: true # don't fail the scan if the Security tab is briefly unavailable
         with:
           sarif_file: trivy-results.sarif
