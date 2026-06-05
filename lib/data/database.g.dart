@@ -1234,6 +1234,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ProfilesTable profiles = $ProfilesTable(this);
   late final $WeightEntriesTable weightEntries = $WeightEntriesTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
+  late final WeightEntryDao weightEntryDao = WeightEntryDao(
+    this as AppDatabase,
+  );
+  late final ProfileDao profileDao = ProfileDao(this as AppDatabase);
+  late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

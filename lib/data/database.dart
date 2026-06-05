@@ -1,6 +1,9 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import 'daos/profile_dao.dart';
+import 'daos/settings_dao.dart';
+import 'daos/weight_entry_dao.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
@@ -12,7 +15,10 @@ part 'database.g.dart';
 /// which transparently uses a native SQLite file on mobile/desktop and the
 /// sqlite3 WASM build on web — so the same code runs everywhere, including the
 /// Docker web demo.
-@DriftDatabase(tables: [Profiles, WeightEntries, Settings])
+@DriftDatabase(
+  tables: [Profiles, WeightEntries, Settings],
+  daos: [WeightEntryDao, ProfileDao, SettingsDao],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
