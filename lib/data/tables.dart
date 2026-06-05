@@ -23,8 +23,7 @@ class Profiles extends Table {
   TextColumn get sex => text().nullable()();
   DateTimeColumn get birthDate => dateTime().nullable()();
 
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// One logged measurement. Belongs to a profile; constrained to one entry per
@@ -40,10 +39,8 @@ class WeightEntries extends Table {
 
   TextColumn get note => text().nullable()();
 
-  DateTimeColumn get createdAt =>
-      dateTime().withDefault(currentDateAndTime)();
-  DateTimeColumn get updatedAt =>
-      dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
 /// Presentation preferences. Single row, kept separate from [Profiles] because
@@ -60,8 +57,6 @@ class Settings extends Table {
   /// 'system' | 'light' | 'dark'.
   TextColumn get theme => text().withDefault(const Constant('system'))();
 
-  BoolColumn get showMovingAvg =>
-      boolean().withDefault(const Constant(true))();
-  BoolColumn get showGoalLine =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get showMovingAvg => boolean().withDefault(const Constant(true))();
+  BoolColumn get showGoalLine => boolean().withDefault(const Constant(true))();
 }

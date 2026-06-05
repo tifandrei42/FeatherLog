@@ -52,7 +52,9 @@ void main() {
       // otherwise the fresh auto-increment id means no conflict and the unique
       // index on date throws. This is the pattern the DAO will use for
       // "log/overwrite today's weight".
-      Future<void> upsert(double kg) => db.into(db.weightEntries).insert(
+      Future<void> upsert(double kg) => db
+          .into(db.weightEntries)
+          .insert(
             WeightEntriesCompanion.insert(date: date, weightKg: kg),
             onConflict: DoUpdate(
               (old) => WeightEntriesCompanion(weightKg: Value(kg)),
@@ -69,18 +71,21 @@ void main() {
     });
 
     test('update and delete a row', () async {
-      final id = await db.into(db.weightEntries).insert(
+      final id = await db
+          .into(db.weightEntries)
+          .insert(
             WeightEntriesCompanion.insert(
               date: DateTime(2026, 5, 28),
               weightKg: 80.0,
             ),
           );
 
-      await (db.update(db.weightEntries)..where((t) => t.id.equals(id)))
-          .write(const WeightEntriesCompanion(weightKg: Value(78.2)));
-      var row = await (db.select(db.weightEntries)
-            ..where((t) => t.id.equals(id)))
-          .getSingle();
+      await (db.update(db.weightEntries)..where((t) => t.id.equals(id))).write(
+        const WeightEntriesCompanion(weightKg: Value(78.2)),
+      );
+      var row = await (db.select(
+        db.weightEntries,
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(row.weightKg, 78.2);
 
       await (db.delete(db.weightEntries)..where((t) => t.id.equals(id))).go();
@@ -90,12 +95,10 @@ void main() {
 
   group('Profiles', () {
     test('height is nullable until set', () async {
-      final id = await db
-          .into(db.profiles)
-          .insert(const ProfilesCompanion());
-      final p =
-          await (db.select(db.profiles)..where((t) => t.id.equals(id)))
-              .getSingle();
+      final id = await db.into(db.profiles).insert(const ProfilesCompanion());
+      final p = await (db.select(
+        db.profiles,
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(p.heightCm, isNull);
       expect(p.goalWeightKg, isNull);
     });
@@ -103,11 +106,10 @@ void main() {
 
   group('Settings', () {
     test('defaults are kg / cm / system with overlays on', () async {
-      final id = await db
-          .into(db.settings)
-          .insert(const SettingsCompanion());
-      final s = await (db.select(db.settings)..where((t) => t.id.equals(id)))
-          .getSingle();
+      final id = await db.into(db.settings).insert(const SettingsCompanion());
+      final s = await (db.select(
+        db.settings,
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(s.weightUnit, 'kg');
       expect(s.lengthUnit, 'cm');
       expect(s.theme, 'system');
