@@ -8,6 +8,17 @@ Thanks for your interest! This project aims to be a clean, well-engineered examp
 2. `flutter pub get`
 3. `flutter run` to launch on a device/emulator.
 
+### Running on web
+
+The web build needs two third-party SQLite assets (drift worker + sqlite3
+wasm) that are **not** committed (they're library artifacts). Fetch them once
+before `flutter run -d chrome` or `flutter build web`:
+
+- macOS/Linux: `bash tool/fetch_web_db_assets.sh`
+- Windows: `pwsh tool/fetch_web_db_assets.ps1`
+
+The Docker web build runs this automatically.
+
 ## Workflow
 
 - `main` is protected. All changes land via pull request.
