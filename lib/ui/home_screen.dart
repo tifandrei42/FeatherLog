@@ -59,7 +59,7 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: entriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Something went wrong:\n$e')),
+        error: (e, _) => const _ErrorState(),
         data: (entries) {
           if (entries.isEmpty) return const _EmptyState();
           return _Dashboard(
@@ -98,6 +98,41 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Tap “Log weight” to record your first measurement.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.cloud_off_outlined,
+              size: 64,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text("Couldn't load your data", style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Try reopening the app. Your saved entries are safe on your '
+              'device.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
