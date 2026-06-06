@@ -28,6 +28,19 @@ jobs:
       - name: Run tests (gate the release)
         run: flutter test
 
+      # Derive versionName + versionCode from the vMAJOR.MINOR.PATCH tag so we
+      # never hand-edit pubspec for a release. versionCode must be monotonic for
+      # Google Play; MAJOR*1e6 + MINOR*1e3 + PATCH guarantees that for semver.
+      - name: Derive version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$TAG"
+          CODE=$((MAJOR * 1000000 + MINOR * 1000 + PATCH))
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "Release $TAG -> versionName=$TAG versionCode=$CODE"
+
       # --- Signing: secrets are configured under Settings > Secrets and variables > Actions ---
       # KEYSTORE_BASE64  : base64 of your upload-keystore.jks  (base64 -w0 upload-keystore.jks)
       # STORE_PASSWORD   : keystore password
@@ -46,11 +59,19 @@ jobs:
           EOF
 
       - name: Build signed APK (per-ABI for smaller downloads)
-        run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
+        run: >-
+          flutter build apk --release --split-per-abi
+          --build-name=${{ steps.version.outputs.name }}
+          --build-number=${{ steps.version.outputs.code }}
+          --obfuscate --split-debug-info=build/symbols
 
       # App Bundle for Google Play (Play requires an .aab, not an APK).
       - name: Build signed App Bundle (Google Play)
-        run: flutter build appbundle --release --obfuscate --split-debug-info=build/symbols
+        run: >-
+          flutter build appbundle --release
+          --build-name=${{ steps.version.outputs.name }}
+          --build-number=${{ steps.version.outputs.code }}
+          --obfuscate --split-debug-info=build/symbols
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0.24.0
