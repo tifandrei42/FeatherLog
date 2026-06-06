@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../domain/daily.dart';
 import '../../domain/stats.dart';
 import '../../domain/units.dart';
+import '../theme/app_theme.dart';
 
 /// A line chart of the daily-aggregated weight series.
 ///
@@ -233,8 +234,14 @@ class WeightChart extends StatelessWidget {
   /// Convenience label, e.g. for an axis title elsewhere.
   String get unitLabel => unit == WeightUnit.lb ? 'lb' : 'kg';
 
-  /// "positive/sage" goal color from UI_DESIGN.md, theme-aware.
-  Color _goalColor(ThemeData theme) => theme.brightness == Brightness.dark
-      ? const Color(0xFF7CC4A4)
-      : const Color(0xFF6BAF92);
+  /// "positive/sage" goal color from the theme palette (UI_DESIGN.md). Falls
+  /// back to the sage tokens if the extension isn't registered (e.g. a bare
+  /// MaterialApp in a widget test).
+  Color _goalColor(ThemeData theme) {
+    final palette = theme.extension<FeatherPalette>();
+    if (palette != null) return palette.positive;
+    return theme.brightness == Brightness.dark
+        ? const Color(0xFF7CC4A4)
+        : const Color(0xFF6BAF92);
+  }
 }
