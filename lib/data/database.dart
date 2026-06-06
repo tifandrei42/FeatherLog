@@ -4,6 +4,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'daos/profile_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/weight_entry_dao.dart';
+import 'import_service.dart';
 import 'tables.dart';
 
 part 'database.g.dart';
@@ -42,6 +43,33 @@ class AppDatabase extends _$AppDatabase {
       }
     },
   );
+
+  /// Applies a parsed [ImportResult] as a full restore, in one transaction:
+  /// existing entries are replaced, and profile/settings fields present in the
+  /// backup are updated. Runs only after the import file has been validated, so
+  /// a malformed file never reaches here (US-11.4).
+  Future<void> applyImport(ImportResult result) {
+    return transaction(() async {
+      await weightEntryDao.deleteAllEntries();
+      await weightEntryDao.bulkInsert(result.entries);
+
+      if (result.heightCm != null) {
+        await profileDao.updateHeight(result.heightCm);
+      }
+      if (result.goalWeightKg != null) {
+        await profileDao.updateGoalWeight(result.goalWeightKg);
+      }
+      if (result.weightUnit != null) {
+        await settingsDao.updateWeightUnit(result.weightUnit!);
+      }
+      if (result.lengthUnit != null) {
+        await settingsDao.updateLengthUnit(result.lengthUnit!);
+      }
+      if (result.theme != null) {
+        await settingsDao.updateTheme(result.theme!);
+      }
+    });
+  }
 
   static QueryExecutor _openConnection() {
     // `driftDatabase` picks the right platform implementation automatically:

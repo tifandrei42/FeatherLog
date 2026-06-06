@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../data/export_service.dart';
+import '../data/import_service.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
@@ -129,6 +131,12 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('For spreadsheets (includes BMI)'),
             onTap: () => _export(context, ref, asCsv: true),
           ),
+          ListTile(
+            leading: const Icon(Icons.restore),
+            title: const Text('Import from JSON'),
+            subtitle: const Text('Restore from a backup (replaces all data)'),
+            onTap: () => _import(context, ref),
+          ),
 
           _header(context, 'About'),
           const ListTile(
@@ -201,6 +209,67 @@ class SettingsScreen extends ConsumerWidget {
     } catch (e) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Export failed. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _import(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final db = ref.read(databaseProvider);
+
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      withData: true,
+    );
+    if (picked == null) return; // cancelled
+
+    final bytes = picked.files.single.bytes;
+    if (bytes == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't read that file.")),
+      );
+      return;
+    }
+
+    // Parse + validate BEFORE touching the database.
+    final result = const ImportService().parse(utf8.decode(bytes));
+    if (!result.isOk) {
+      messenger.showSnackBar(SnackBar(content: Text(result.error!)));
+      return;
+    }
+
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Restore from backup?'),
+        content: Text(
+          'This replaces all current data with ${result.entries.length} '
+          'entries from the backup. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await db.applyImport(result);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Restored ${result.entries.length} entries')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Import failed. Your data is unchanged.')),
       );
     }
   }
