@@ -32,7 +32,7 @@ FeatherLog is distributed as a signed APK on the [Releases page](https://github.
 
 ## Privacy
 
-FeatherLog stores all data locally on your device. It has no backend, requests no network permissions, and contains no analytics or advertising SDKs. Backups happen via Android Auto Backup (to *your* Google account) and via manual export to a file you control.
+FeatherLog stores all data locally on your device. It has no backend, requests no network permissions, and contains no analytics or advertising SDKs. Backups happen via Android Auto Backup (to *your* Google account) and via manual export to a file you control. See the full [Privacy Policy](PRIVACY.md).
 
 ## Build from source
 
