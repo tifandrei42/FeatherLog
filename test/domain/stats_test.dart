@@ -82,6 +82,36 @@ void main() {
     test('null with <2 points', () {
       expect(ratePerWeek(seriesFrom([80])), isNull);
     });
+
+    test('uses the recent window, not full history (issue #34)', () {
+      // 60 days: gained for the first 40 (80 -> 100), then losing for the last
+      // 20 (100 -> 90). Full-history slope is positive; the recent 30-day rate
+      // must be negative so the projection points the right way.
+      final kgs = <double>[
+        for (var i = 0; i < 40; i++) 80.0 + (20 * i / 39),
+        for (var i = 1; i <= 20; i++) 100.0 - (10 * i / 20),
+      ];
+      final s = seriesFrom(kgs);
+      final rate = ratePerWeek(s)!; // default 30-day window
+      expect(rate, lessThan(0), reason: 'recent trend is downward');
+
+      // And a projection toward a lower goal is now meaningful.
+      final weeks = projectionWeeks(
+        currentKg: s.last.weightKg,
+        goalKg: 85,
+        ratePerWeek: rate,
+      );
+      expect(weeks, isNotNull);
+      expect(weeks, greaterThan(0));
+    });
+
+    test('respects a custom recentDays window', () {
+      final s = seriesFrom(List.generate(60, (i) => 90.0 - i * 0.1));
+      // Both windows are downward here; just assert it computes without error
+      // and stays negative for a steady decline.
+      expect(ratePerWeek(s, recentDays: 14)!, lessThan(0));
+      expect(ratePerWeek(s, recentDays: 30)!, lessThan(0));
+    });
   });
 
   group('projectionWeeks', () {
