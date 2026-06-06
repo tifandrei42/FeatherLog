@@ -7,6 +7,7 @@ import '../domain/bmi.dart';
 import '../domain/daily.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
+import '../providers/database_provider.dart';
 import 'add_entry_sheet.dart';
 import 'widgets/day_detail_card.dart';
 import 'widgets/stat_card.dart';
@@ -40,6 +41,8 @@ class HomeScreen extends ConsumerWidget {
             entries: entries,
             unit: weightUnit,
             heightCm: profile?.heightCm,
+            goalKg: profile?.goalWeightKg,
+            showGoalLine: settings?.showGoalLine ?? true,
           );
         },
       ),
@@ -81,11 +84,13 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _Dashboard extends StatefulWidget {
+class _Dashboard extends ConsumerStatefulWidget {
   const _Dashboard({
     required this.entries,
     required this.unit,
     required this.heightCm,
+    required this.goalKg,
+    required this.showGoalLine,
   });
 
   /// Newest first (as provided by entriesProvider).
@@ -93,11 +98,17 @@ class _Dashboard extends StatefulWidget {
   final WeightUnit unit;
   final double? heightCm;
 
+  /// Canonical goal weight (kg), or null if unset.
+  final double? goalKg;
+
+  /// Whether the goal line overlay is enabled in settings.
+  final bool showGoalLine;
+
   @override
-  State<_Dashboard> createState() => _DashboardState();
+  ConsumerState<_Dashboard> createState() => _DashboardState();
 }
 
-class _DashboardState extends State<_Dashboard> {
+class _DashboardState extends ConsumerState<_Dashboard> {
   /// The day currently selected on the chart (drives the detail card).
   DateTime? _selectedDay;
 
@@ -172,6 +183,8 @@ class _DashboardState extends State<_Dashboard> {
           const SizedBox(height: 16),
           _rangeSelector(),
           const SizedBox(height: 8),
+          _overlayChips(),
+          const SizedBox(height: 8),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
@@ -180,6 +193,7 @@ class _DashboardState extends State<_Dashboard> {
                       daily: visibleDaily,
                       unit: unit,
                       selectedDay: selected?.day,
+                      goalKg: widget.showGoalLine ? widget.goalKg : null,
                       onDaySelected: (d) =>
                           setState(() => _selectedDay = d?.day),
                     )
@@ -241,6 +255,69 @@ class _DashboardState extends State<_Dashboard> {
         }),
       ),
     );
+  }
+
+  Widget _overlayChips() {
+    final hasGoal = widget.goalKg != null;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FilterChip(
+        label: Text(hasGoal ? 'Goal line' : 'Set goal'),
+        avatar: Icon(hasGoal ? Icons.flag_outlined : Icons.add, size: 18),
+        selected: hasGoal && widget.showGoalLine,
+        onSelected: (wantOn) async {
+          if (!hasGoal) {
+            await _promptSetGoal();
+            return;
+          }
+          await ref.read(databaseProvider).settingsDao.setShowGoalLine(wantOn);
+        },
+      ),
+    );
+  }
+
+  Future<void> _promptSetGoal() async {
+    final controller = TextEditingController(
+      text: widget.goalKg == null
+          ? ''
+          : weightFromKg(widget.goalKg!, unit).toStringAsFixed(1),
+    );
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set goal weight'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Goal',
+            suffixText: _unitLabel,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final v = double.tryParse(
+                controller.text.trim().replaceAll(',', '.'),
+              );
+              if (v != null && v > 0) Navigator.pop(ctx, v);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    final goalKg = weightToKg(result, unit);
+    await ref.read(databaseProvider).profileDao.updateGoalWeight(goalKg);
+    // Make sure the line is visible once a goal is set.
+    await ref.read(databaseProvider).settingsDao.setShowGoalLine(true);
   }
 
   Widget _bmiCard(BuildContext context, double currentKg) {

@@ -17,6 +17,7 @@ class WeightChart extends StatelessWidget {
     required this.unit,
     this.onDaySelected,
     this.selectedDay,
+    this.goalKg,
   });
 
   /// Oldest-first daily series (as produced by `dailyAverages`).
@@ -29,6 +30,9 @@ class WeightChart extends StatelessWidget {
 
   /// The currently selected day, highlighted on the line.
   final DateTime? selectedDay;
+
+  /// Canonical goal weight (kg) to draw as a horizontal line, or null to hide.
+  final double? goalKg;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +47,11 @@ class WeightChart extends StatelessWidget {
         FlSpot(xFor(d.day), weightFromKg(d.weightKg, unit)),
     ];
 
+    final goalY = goalKg == null ? null : weightFromKg(goalKg!, unit);
+
     final ys = spots.map((s) => s.y).toList();
+    // Include the goal in the range so its line is always visible.
+    if (goalY != null) ys.add(goalY);
     final minY = ys.reduce((a, b) => a < b ? a : b);
     final maxY = ys.reduce((a, b) => a > b ? a : b);
     // Pad the range so the line isn't glued to the top/bottom; guarantee a
@@ -117,6 +125,26 @@ class WeightChart extends StatelessWidget {
             ),
           ),
           borderData: FlBorderData(show: false),
+          extraLinesData: goalY == null
+              ? const ExtraLinesData()
+              : ExtraLinesData(
+                  horizontalLines: [
+                    HorizontalLine(
+                      y: goalY,
+                      color: _goalColor(theme),
+                      strokeWidth: 2,
+                      dashArray: const [6, 4],
+                      label: HorizontalLineLabel(
+                        show: true,
+                        alignment: Alignment.topRight,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: _goalColor(theme),
+                        ),
+                        labelResolver: (_) => 'Goal',
+                      ),
+                    ),
+                  ],
+                ),
           lineBarsData: [
             LineChartBarData(
               spots: spots,
@@ -175,4 +203,9 @@ class WeightChart extends StatelessWidget {
 
   /// Convenience label, e.g. for an axis title elsewhere.
   String get unitLabel => unit == WeightUnit.lb ? 'lb' : 'kg';
+
+  /// "positive/sage" goal color from UI_DESIGN.md, theme-aware.
+  Color _goalColor(ThemeData theme) => theme.brightness == Brightness.dark
+      ? const Color(0xFF7CC4A4)
+      : const Color(0xFF6BAF92);
 }
