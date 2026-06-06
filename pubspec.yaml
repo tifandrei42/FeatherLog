@@ -56,6 +56,24 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   drift_dev: ^2.33.0
   build_runner: ^2.15.0
+  flutter_launcher_icons: ^0.14.4
+
+# App launcher icon generation (run: dart run flutter_launcher_icons).
+# Source is the hand-built feather mark (Documentation/featherlog-app-icons),
+# copied into assets/icon/. Generates Android, iOS and web icons from one image.
+flutter_launcher_icons:
+  image_path: "assets/icon/featherlog-1024.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/icon/featherlog-1024.png"
+  # Android 13+ themed/adaptive icon: feather foreground over the brand gradient
+  # tone. The source already includes a rounded background, so this mainly helps
+  # on launchers that mask adaptive layers.
+  adaptive_icon_background: "#8AA6E0"
+  adaptive_icon_foreground: "assets/icon/featherlog-1024.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
