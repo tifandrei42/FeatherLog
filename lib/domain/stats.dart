@@ -49,15 +49,29 @@ double? periodChange(List<DailyWeight> daily, int days) {
 }
 
 /// Average rate of change in kg per week, from a least-squares fit over the
-/// smoothed series (x = days since first point, y = kg). Null if fewer than two
-/// smoothed points or the dates don't span any time.
-double? ratePerWeek(List<DailyWeight> daily, {int window = 7}) {
+/// smoothed series (x = days since the window start, y = kg).
+///
+/// Only the **trailing [recentDays]-day window** (default 30) of the smoothed
+/// series is used: a full-history fit stays positive after a user who gained
+/// starts losing, which contradicts the recent trend and breaks the projection
+/// (RESEARCH.md §4, issue #34). Null if fewer than two points in the window or
+/// the dates don't span any time.
+double? ratePerWeek(
+  List<DailyWeight> daily, {
+  int window = 7,
+  int recentDays = 30,
+}) {
   final smoothed = movingAverage(daily, window: window);
   if (smoothed.length < 2) return null;
 
-  final x0 = smoothed.first.day;
-  final xs = [for (final d in smoothed) d.day.difference(x0).inDays.toDouble()];
-  final ys = [for (final d in smoothed) d.weightKg];
+  // Keep only the trailing recentDays window, counting back from the last day.
+  final cutoff = smoothed.last.day.subtract(Duration(days: recentDays - 1));
+  final recent = smoothed.where((d) => !d.day.isBefore(cutoff)).toList();
+  if (recent.length < 2) return null;
+
+  final x0 = recent.first.day;
+  final xs = [for (final d in recent) d.day.difference(x0).inDays.toDouble()];
+  final ys = [for (final d in recent) d.weightKg];
   final n = xs.length;
 
   final meanX = xs.reduce((a, b) => a + b) / n;
