@@ -101,6 +101,9 @@ class _DashboardState extends State<_Dashboard> {
   /// The day currently selected on the chart (drives the detail card).
   DateTime? _selectedDay;
 
+  /// The selected chart time window.
+  ChartRange _range = ChartRange.month;
+
   WeightUnit get unit => widget.unit;
   double? get heightCm => widget.heightCm;
 
@@ -136,12 +139,18 @@ class _DashboardState extends State<_Dashboard> {
     final today = daily.last; // entries is non-empty here
     final yesterday = daily.length > 1 ? daily[daily.length - 2] : null;
 
-    // Resolve the selected day (clearing it if it no longer exists).
+    // The chart shows only the selected time window; current weight / BMI /
+    // recent list still reflect the full history.
+    final visibleDaily = filterByRange(daily, _range);
+
+    // Resolve the selected day within the visible window (clear if not shown).
     final selectedIndex = _selectedDay == null
         ? -1
-        : daily.indexWhere((d) => d.day == _selectedDay);
-    final selected = selectedIndex >= 0 ? daily[selectedIndex] : null;
-    final selectedPrev = selectedIndex > 0 ? daily[selectedIndex - 1] : null;
+        : visibleDaily.indexWhere((d) => d.day == _selectedDay);
+    final selected = selectedIndex >= 0 ? visibleDaily[selectedIndex] : null;
+    final selectedPrev = selectedIndex > 0
+        ? visibleDaily[selectedIndex - 1]
+        : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
@@ -161,15 +170,33 @@ class _DashboardState extends State<_Dashboard> {
         _bmiCard(context, today.weightKg),
         if (daily.length >= 2) ...[
           const SizedBox(height: 16),
+          _rangeSelector(),
+          const SizedBox(height: 8),
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
-              child: WeightChart(
-                daily: daily,
-                unit: unit,
-                selectedDay: selected?.day,
-                onDaySelected: (d) => setState(() => _selectedDay = d?.day),
-              ),
+              child: visibleDaily.length >= 2
+                  ? WeightChart(
+                      daily: visibleDaily,
+                      unit: unit,
+                      selectedDay: selected?.day,
+                      onDaySelected: (d) =>
+                          setState(() => _selectedDay = d?.day),
+                    )
+                  : SizedBox(
+                      height: 220,
+                      child: Center(
+                        child: Text(
+                          'Not enough data in this range',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ),
+                    ),
             ),
           ),
           AnimatedSize(
@@ -195,6 +222,24 @@ class _DashboardState extends State<_Dashboard> {
         const SizedBox(height: 8),
         ...widget.entries.take(10).map((e) => _EntryTile(entry: e, unit: unit)),
       ],
+    );
+  }
+
+  Widget _rangeSelector() {
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<ChartRange>(
+        showSelectedIcon: false,
+        segments: [
+          for (final r in ChartRange.values)
+            ButtonSegment(value: r, label: Text(r.label)),
+        ],
+        selected: {_range},
+        onSelectionChanged: (s) => setState(() {
+          _range = s.first;
+          _selectedDay = null; // clear selection when the window changes
+        }),
+      ),
     );
   }
 
