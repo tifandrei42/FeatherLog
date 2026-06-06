@@ -1,6 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../data/export_service.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
@@ -109,6 +116,20 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (v) => dao.settingsDao.setShowGoalLine(v),
           ),
 
+          _header(context, 'Data'),
+          ListTile(
+            leading: const Icon(Icons.code),
+            title: const Text('Export as JSON'),
+            subtitle: const Text('Complete, restorable backup'),
+            onTap: () => _export(context, ref, asCsv: false),
+          ),
+          ListTile(
+            leading: const Icon(Icons.table_chart_outlined),
+            title: const Text('Export as CSV'),
+            subtitle: const Text('For spreadsheets (includes BMI)'),
+            onTap: () => _export(context, ref, asCsv: true),
+          ),
+
           _header(context, 'About'),
           const ListTile(
             title: Text('FeatherLog'),
@@ -120,6 +141,68 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _export(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool asCsv,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final db = ref.read(databaseProvider);
+    try {
+      final entries = await db.weightEntryDao.getAllEntries();
+      if (entries.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Nothing to export yet')),
+        );
+        return;
+      }
+      final profile = await db.profileDao.getOrCreateProfile();
+      final settings = await db.settingsDao.getOrCreateSettings();
+      const service = ExportService();
+
+      final String content;
+      final String filename;
+      if (asCsv) {
+        content = service.toCsv(profile: profile, entries: entries);
+        filename = 'featherlog_export.csv';
+      } else {
+        content = service.toJson(
+          profile: profile,
+          settings: settings,
+          entries: entries,
+          exportedAt: DateTime.now(),
+        );
+        filename = 'featherlog_export.json';
+      }
+
+      if (kIsWeb) {
+        // On web, share the bytes directly (triggers a download).
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [
+              XFile.fromData(
+                utf8.encode(content),
+                name: filename,
+                mimeType: asCsv ? 'text/csv' : 'application/json',
+              ),
+            ],
+            fileNameOverrides: [filename],
+          ),
+        );
+      } else {
+        // On native, write to a temp file then share it.
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$filename');
+        await file.writeAsString(content);
+        await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Export failed. Please try again.')),
+      );
+    }
   }
 
   Widget _header(BuildContext context, String text) => Padding(
