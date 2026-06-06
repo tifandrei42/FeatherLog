@@ -161,6 +161,12 @@ class SettingsScreen extends ConsumerWidget {
               currentCm,
               unit,
             ).toStringAsFixed(unit == LengthUnit.inch ? 1 : 0),
+      validate: (v) {
+        // Plausible human height: ~50–272 cm.
+        final cm = lengthToCm(v, unit);
+        if (cm < 50 || cm > 272) return 'Enter a realistic height';
+        return null;
+      },
     );
     if (result == null) return;
     await ref
@@ -183,6 +189,12 @@ class SettingsScreen extends ConsumerWidget {
       initial: currentKg == null
           ? ''
           : weightFromKg(currentKg, unit).toStringAsFixed(1),
+      validate: (v) {
+        // Plausible adult weight: up to ~454 kg.
+        final kg = weightToKg(v, unit);
+        if (kg > 454) return 'That seems too high';
+        return null;
+      },
     );
     if (result == null) return;
     await ref
@@ -191,43 +203,106 @@ class SettingsScreen extends ConsumerWidget {
         .updateGoalWeight(weightToKg(result, unit));
   }
 
-  /// Shared numeric-entry dialog. Returns the parsed positive value, or null.
+  /// Shared validated numeric-entry dialog. Returns the parsed value, or null
+  /// if cancelled. [validate] receives the parsed positive number and returns
+  /// an error string (shown inline) or null when acceptable.
   Future<double?> _numberDialog(
     BuildContext context, {
     required String title,
     required String suffix,
     required String initial,
+    String? Function(double value)? validate,
   }) {
-    final controller = TextEditingController(text: initial);
     return showDialog<double>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            suffixText: suffix,
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final v = double.tryParse(
-                controller.text.trim().replaceAll(',', '.'),
-              );
-              if (v != null && v > 0) Navigator.pop(ctx, v);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (ctx) => _NumberDialog(
+        title: title,
+        suffix: suffix,
+        initial: initial,
+        validate: validate,
       ),
+    );
+  }
+}
+
+/// A small stateful numeric dialog with inline validation feedback.
+class _NumberDialog extends StatefulWidget {
+  const _NumberDialog({
+    required this.title,
+    required this.suffix,
+    required this.initial,
+    this.validate,
+  });
+
+  final String title;
+  final String suffix;
+  final String initial;
+  final String? Function(double value)? validate;
+
+  @override
+  State<_NumberDialog> createState() => _NumberDialogState();
+}
+
+class _NumberDialogState extends State<_NumberDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim().replaceAll(',', '.');
+    final v = double.tryParse(text);
+    if (text.isEmpty) {
+      setState(() => _error = 'Enter a value');
+      return;
+    }
+    if (v == null) {
+      setState(() => _error = 'Not a number');
+      return;
+    }
+    if (v <= 0) {
+      setState(() => _error = 'Must be greater than 0');
+      return;
+    }
+    final custom = widget.validate?.call(v);
+    if (custom != null) {
+      setState(() => _error = custom);
+      return;
+    }
+    Navigator.pop(context, v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          suffixText: widget.suffix,
+          border: const OutlineInputBorder(),
+          errorText: _error,
+        ),
+        onChanged: (_) {
+          if (_error != null) setState(() => _error = null);
+        },
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Save')),
+      ],
     );
   }
 }
