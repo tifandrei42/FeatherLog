@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -217,15 +217,18 @@ class SettingsScreen extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     final db = ref.read(databaseProvider);
 
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-      withData: true,
+    const typeGroup = XTypeGroup(
+      label: 'JSON backup',
+      extensions: ['json'],
+      mimeTypes: ['application/json'],
     );
+    final picked = await openFile(acceptedTypeGroups: [typeGroup]);
     if (picked == null) return; // cancelled
 
-    final bytes = picked.files.single.bytes;
-    if (bytes == null) {
+    final String content;
+    try {
+      content = await picked.readAsString();
+    } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text("Couldn't read that file.")),
       );
@@ -233,7 +236,7 @@ class SettingsScreen extends ConsumerWidget {
     }
 
     // Parse + validate BEFORE touching the database.
-    final result = const ImportService().parse(utf8.decode(bytes));
+    final result = const ImportService().parse(content);
     if (!result.isOk) {
       messenger.showSnackBar(SnackBar(content: Text(result.error!)));
       return;
