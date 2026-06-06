@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/daily.dart';
+import '../../domain/stats.dart';
 import '../../domain/units.dart';
 
 /// A line chart of the daily-aggregated weight series.
@@ -18,6 +19,7 @@ class WeightChart extends StatelessWidget {
     this.onDaySelected,
     this.selectedDay,
     this.goalKg,
+    this.showMovingAverage = false,
   });
 
   /// Oldest-first daily series (as produced by `dailyAverages`).
@@ -34,6 +36,10 @@ class WeightChart extends StatelessWidget {
   /// Canonical goal weight (kg) to draw as a horizontal line, or null to hide.
   final double? goalKg;
 
+  /// Whether to overlay a 7-day moving-average line on top of the raw series.
+  /// Only drawn when there are at least two points.
+  final bool showMovingAverage;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -46,6 +52,16 @@ class WeightChart extends StatelessWidget {
       for (final d in daily)
         FlSpot(xFor(d.day), weightFromKg(d.weightKg, unit)),
     ];
+
+    // Optional 7-day moving-average overlay. Smoothed values are always within
+    // the raw data range, so they don't affect the Y-axis bounds below.
+    final showMa = showMovingAverage && daily.length >= 2;
+    final maSpots = showMa
+        ? [
+            for (final d in movingAverage(daily))
+              FlSpot(xFor(d.day), weightFromKg(d.weightKg, unit)),
+          ]
+        : const <FlSpot>[];
 
     final goalY = goalKg == null ? null : weightFromKg(goalKg!, unit);
 
@@ -146,6 +162,19 @@ class WeightChart extends StatelessWidget {
                   ],
                 ),
           lineBarsData: [
+            // Moving-average overlay, drawn beneath the raw line so it stays
+            // visually subordinate: thinner, distinct shade, no dots, no fill.
+            if (showMa)
+              LineChartBarData(
+                spots: maSpots,
+                isCurved: true,
+                preventCurveOverShooting: true,
+                color: theme.colorScheme.tertiary,
+                barWidth: 2,
+                dashArray: const [6, 4],
+                dotData: const FlDotData(show: false),
+                belowBarData: BarAreaData(show: false),
+              ),
             LineChartBarData(
               spots: spots,
               isCurved: true,
