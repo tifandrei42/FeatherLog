@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers/data_providers.dart';
 import 'ui/home_screen.dart';
+import 'ui/theme/app_theme.dart';
 
 void main() {
   runApp(const ProviderScope(child: FeatherLogApp()));
@@ -21,22 +22,12 @@ class FeatherLogApp extends ConsumerWidget {
       _ => ThemeMode.system,
     };
 
-    const seed = Color(0xFF3A7CA5); // calm blue — "feather" light.
     return MaterialApp(
       title: 'FeatherLog',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: seed),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seed,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       home: const HomeScreen(),
     );
   }
