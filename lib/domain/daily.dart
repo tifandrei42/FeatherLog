@@ -53,3 +53,30 @@ DailyWeight? latestDailyAverage(Iterable<Reading> readings) {
   final daily = dailyAverages(readings);
   return daily.isEmpty ? null : daily.last;
 }
+
+/// Selectable chart time windows (US-6.3).
+enum ChartRange {
+  week('1W', 7),
+  month('1M', 30),
+  threeMonths('3M', 90),
+  year('1Y', 365),
+  all('All', null);
+
+  const ChartRange(this.label, this.days);
+
+  /// Short label for the segmented control.
+  final String label;
+
+  /// Window length in days, or null for "all".
+  final int? days;
+}
+
+/// Returns the entries of [daily] within [range], counting back from the most
+/// recent day in the series (not "now", so a gap at the end doesn't empty the
+/// chart). [daily] is assumed oldest-first; the result preserves that order.
+List<DailyWeight> filterByRange(List<DailyWeight> daily, ChartRange range) {
+  final days = range.days;
+  if (days == null || daily.isEmpty) return daily;
+  final cutoff = daily.last.day.subtract(Duration(days: days - 1));
+  return daily.where((d) => !d.day.isBefore(cutoff)).toList();
+}
