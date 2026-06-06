@@ -26,11 +26,34 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      // v1 → v2: WeightEntries moved from a unique `date` to a non-unique
+      // `measuredAt` timestamp (multiple readings per day are now kept).
+      // Pre-release, so the old day-keyed rows are dropped and the table is
+      // recreated rather than migrated row-by-row.
+      if (from < 2) {
+        await m.deleteTable(weightEntries.actualTableName);
+        await m.createTable(weightEntries);
+      }
+    },
+  );
 
   static QueryExecutor _openConnection() {
-    // `driftDatabase` picks the right platform implementation automatically.
-    // The web build looks for sqlite3.wasm + drift_worker.js under web/.
-    return driftDatabase(name: 'featherlog');
+    // `driftDatabase` picks the right platform implementation automatically:
+    // a native SQLite file on mobile/desktop, and sqlite3 WASM on web. On web
+    // it must be told where the wasm engine + drift worker live — these are the
+    // files served from web/ (see web/sqlite3.wasm and web/drift_worker.js).
+    return driftDatabase(
+      name: 'featherlog',
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.js'),
+      ),
+    );
   }
 }

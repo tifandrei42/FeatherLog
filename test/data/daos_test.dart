@@ -14,91 +14,112 @@ void main() {
   });
 
   group('WeightEntryDao', () {
-    test('upsertForDate inserts then overwrites the same day', () async {
-      final date = DateTime(2026, 5, 28);
-      await db.weightEntryDao.upsertForDate(date: date, weightKg: 80.0);
-      await db.weightEntryDao.upsertForDate(
-        date: date,
-        weightKg: 79.4,
-        note: 'after run',
+    test('addReading keeps multiple readings on the same day', () async {
+      final day = DateTime(2026, 5, 28);
+      await db.weightEntryDao.addReading(
+        measuredAt: day.add(const Duration(hours: 7)),
+        weightKg: 80.4,
+        note: 'morning',
+      );
+      await db.weightEntryDao.addReading(
+        measuredAt: day.add(const Duration(hours: 21)),
+        weightKg: 80.9,
+        note: 'evening',
       );
 
       final all = await db.weightEntryDao.getAllEntries();
-      expect(all, hasLength(1));
-      expect(all.single.weightKg, 79.4);
-      expect(all.single.note, 'after run');
+      expect(all, hasLength(2)); // both kept, no overwrite
+      expect(all.map((e) => e.weightKg), [80.4, 80.9]); // oldest first
     });
 
-    test('getEntryForDate returns the row or null', () async {
-      final date = DateTime(2026, 5, 28);
-      expect(await db.weightEntryDao.getEntryForDate(date), isNull);
-      await db.weightEntryDao.upsertForDate(date: date, weightKg: 80.0);
-      expect(await db.weightEntryDao.getEntryForDate(date), isNotNull);
+    test('getReadingsForDay returns only that calendar day', () async {
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 28, 7),
+        weightKg: 80.0,
+      );
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 28, 21),
+        weightKg: 81.0,
+      );
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 29, 7),
+        weightKg: 79.0,
+      );
+
+      final day = await db.weightEntryDao.getReadingsForDay(
+        DateTime(2026, 5, 28),
+      );
+      expect(day, hasLength(2));
+      expect(day.every((e) => e.measuredAt.day == 28), isTrue);
     });
 
     test('watchAllEntries emits newest first', () async {
-      await db.weightEntryDao.upsertForDate(
-        date: DateTime(2026, 5, 27),
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 27, 8),
         weightKg: 81.0,
       );
-      await db.weightEntryDao.upsertForDate(
-        date: DateTime(2026, 5, 29),
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 29, 8),
         weightKg: 80.0,
       );
-      await db.weightEntryDao.upsertForDate(
-        date: DateTime(2026, 5, 28),
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 28, 8),
         weightKg: 80.5,
       );
 
       final first = await db.weightEntryDao.watchAllEntries().first;
-      expect(first.map((e) => e.date), [
-        DateTime(2026, 5, 29),
-        DateTime(2026, 5, 28),
-        DateTime(2026, 5, 27),
+      expect(first.map((e) => e.measuredAt), [
+        DateTime(2026, 5, 29, 8),
+        DateTime(2026, 5, 28, 8),
+        DateTime(2026, 5, 27, 8),
       ]);
+    });
+
+    test('updateReading edits in place', () async {
+      final id = await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 28, 8),
+        weightKg: 80.0,
+      );
+      await db.weightEntryDao.updateReading(
+        id: id,
+        measuredAt: DateTime(2026, 5, 28, 8),
+        weightKg: 78.2,
+        note: 'corrected',
+      );
+      final all = await db.weightEntryDao.getAllEntries();
+      expect(all, hasLength(1));
+      expect(all.single.weightKg, 78.2);
+      expect(all.single.note, 'corrected');
     });
 
     test('deleteEntry removes a single row', () async {
-      await db.weightEntryDao.upsertForDate(
-        date: DateTime(2026, 5, 28),
+      final id = await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 5, 28, 8),
         weightKg: 80.0,
       );
-      final entry = await db.weightEntryDao.getEntryForDate(
-        DateTime(2026, 5, 28),
-      );
-      final removed = await db.weightEntryDao.deleteEntry(entry!.id);
-      expect(removed, 1);
+      expect(await db.weightEntryDao.deleteEntry(id), 1);
       expect(await db.weightEntryDao.getAllEntries(), isEmpty);
     });
 
-    test('bulkUpsert + deleteAllEntries (import path)', () async {
-      await db.weightEntryDao.bulkUpsert([
+    test('bulkInsert + deleteAllEntries (import path)', () async {
+      await db.weightEntryDao.bulkInsert([
         WeightEntriesCompanion.insert(
-          date: DateTime(2026, 5, 27),
+          measuredAt: DateTime(2026, 5, 27, 8),
           weightKg: 81.0,
         ),
         WeightEntriesCompanion.insert(
-          date: DateTime(2026, 5, 28),
+          measuredAt: DateTime(2026, 5, 28, 7),
           weightKg: 80.0,
         ),
-      ]);
-      expect(await db.weightEntryDao.getAllEntries(), hasLength(2));
-
-      // Re-upserting an existing date updates rather than duplicates.
-      await db.weightEntryDao.bulkUpsert([
         WeightEntriesCompanion.insert(
-          date: DateTime(2026, 5, 28),
-          weightKg: 79.0,
+          measuredAt: DateTime(2026, 5, 28, 21),
+          weightKg: 80.6,
         ),
       ]);
-      final all = await db.weightEntryDao.getAllEntries();
-      expect(all, hasLength(2));
-      expect(
-        all.firstWhere((e) => e.date == DateTime(2026, 5, 28)).weightKg,
-        79.0,
-      );
+      // All three kept, including two on the same day.
+      expect(await db.weightEntryDao.getAllEntries(), hasLength(3));
 
-      expect(await db.weightEntryDao.deleteAllEntries(), 2);
+      expect(await db.weightEntryDao.deleteAllEntries(), 3);
       expect(await db.weightEntryDao.getAllEntries(), isEmpty);
     });
   });
