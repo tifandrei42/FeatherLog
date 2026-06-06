@@ -11,6 +11,7 @@ import '../providers/database_provider.dart';
 import 'add_entry_sheet.dart';
 import 'widgets/day_detail_card.dart';
 import 'widgets/stat_card.dart';
+import 'widgets/stats_panel.dart';
 import 'widgets/weight_chart.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -43,6 +44,7 @@ class HomeScreen extends ConsumerWidget {
             heightCm: profile?.heightCm,
             goalKg: profile?.goalWeightKg,
             showGoalLine: settings?.showGoalLine ?? true,
+            showMovingAvg: settings?.showMovingAvg ?? true,
           );
         },
       ),
@@ -91,6 +93,7 @@ class _Dashboard extends ConsumerStatefulWidget {
     required this.heightCm,
     required this.goalKg,
     required this.showGoalLine,
+    required this.showMovingAvg,
   });
 
   /// Newest first (as provided by entriesProvider).
@@ -103,6 +106,9 @@ class _Dashboard extends ConsumerStatefulWidget {
 
   /// Whether the goal line overlay is enabled in settings.
   final bool showGoalLine;
+
+  /// Whether the 7-day moving-average overlay is enabled in settings.
+  final bool showMovingAvg;
 
   @override
   ConsumerState<_Dashboard> createState() => _DashboardState();
@@ -194,6 +200,7 @@ class _DashboardState extends ConsumerState<_Dashboard> {
                       unit: unit,
                       selectedDay: selected?.day,
                       goalKg: widget.showGoalLine ? widget.goalKg : null,
+                      showMovingAverage: widget.showMovingAvg,
                       onDaySelected: (d) =>
                           setState(() => _selectedDay = d?.day),
                     )
@@ -231,6 +238,8 @@ class _DashboardState extends ConsumerState<_Dashboard> {
                   ),
           ),
         ],
+        const SizedBox(height: 16),
+        StatsPanel(daily: daily, unit: unit, goalKg: widget.goalKg),
         const SizedBox(height: 24),
         Text('Recent', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -259,20 +268,36 @@ class _DashboardState extends ConsumerState<_Dashboard> {
 
   Widget _overlayChips() {
     final hasGoal = widget.goalKg != null;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: FilterChip(
-        label: Text(hasGoal ? 'Goal line' : 'Set goal'),
-        avatar: Icon(hasGoal ? Icons.flag_outlined : Icons.add, size: 18),
-        selected: hasGoal && widget.showGoalLine,
-        onSelected: (wantOn) async {
-          if (!hasGoal) {
-            await _promptSetGoal();
-            return;
-          }
-          await ref.read(databaseProvider).settingsDao.setShowGoalLine(wantOn);
-        },
-      ),
+    return Wrap(
+      spacing: 8,
+      children: [
+        FilterChip(
+          label: Text(hasGoal ? 'Goal line' : 'Set goal'),
+          avatar: Icon(hasGoal ? Icons.flag_outlined : Icons.add, size: 18),
+          selected: hasGoal && widget.showGoalLine,
+          onSelected: (wantOn) async {
+            if (!hasGoal) {
+              await _promptSetGoal();
+              return;
+            }
+            await ref
+                .read(databaseProvider)
+                .settingsDao
+                .setShowGoalLine(wantOn);
+          },
+        ),
+        FilterChip(
+          label: const Text('7-day avg'),
+          avatar: const Icon(Icons.show_chart, size: 18),
+          selected: widget.showMovingAvg,
+          onSelected: (wantOn) async {
+            await ref
+                .read(databaseProvider)
+                .settingsDao
+                .setShowMovingAvg(wantOn);
+          },
+        ),
+      ],
     );
   }
 

@@ -17,6 +17,9 @@ migrate_working_dir/
 *.iws
 .idea/
 
+# Claude Code agent worktrees / scratch
+.claude/
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may want to commit, so this line is commented out by default.
 #.vscode/
