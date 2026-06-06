@@ -28,7 +28,19 @@ FeatherLog is distributed as a signed APK on the [Releases page](https://github.
 2. Enable installing from unknown sources for your browser/file manager when prompted.
 3. Open the APK to install.
 
-**Tip:** Add this repo to [Obtainium](https://github.com/ImranR98/Obtainium) to get update notifications automatically.
+### Stay updated automatically (recommended)
+
+Use **[Obtainium](https://github.com/ImranR98/Obtainium)** to track this repo's
+releases and get update prompts like an app store — no Google account, no Play:
+
+1. Install Obtainium.
+2. **Add App** → paste `https://github.com/tifandrei42/FeatherLog`.
+3. Obtainium notifies you on each new release; tap to update in place (your data
+   is preserved, since every release is signed with the same key).
+
+> Because the GitHub-release APK and any future Play Store build are signed
+> differently, pick one channel and stick with it — switching requires a
+> reinstall.
 
 ## Privacy
 
