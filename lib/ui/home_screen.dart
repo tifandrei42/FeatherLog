@@ -11,6 +11,7 @@ import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
 import 'add_entry_sheet.dart';
+import 'settings_screen.dart';
 import 'widgets/day_detail_card.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/stats_panel.dart';
@@ -42,6 +43,13 @@ class HomeScreen extends ConsumerWidget {
                 MaterialPageRoute<void>(builder: (_) => const DevMenuScreen()),
               ),
             ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -287,21 +295,26 @@ class _DashboardState extends ConsumerState<_Dashboard> {
     return Wrap(
       spacing: 8,
       children: [
-        FilterChip(
-          label: Text(hasGoal ? 'Goal line' : 'Set goal'),
-          avatar: Icon(hasGoal ? Icons.flag_outlined : Icons.add, size: 18),
-          selected: hasGoal && widget.showGoalLine,
-          onSelected: (wantOn) async {
-            if (!hasGoal) {
-              await _promptSetGoal();
-              return;
-            }
-            await ref
-                .read(databaseProvider)
-                .settingsDao
-                .setShowGoalLine(wantOn);
-          },
-        ),
+        if (hasGoal)
+          FilterChip(
+            label: const Text('Goal line'),
+            avatar: const Icon(Icons.flag_outlined, size: 18),
+            selected: widget.showGoalLine,
+            onSelected: (wantOn) async {
+              await ref
+                  .read(databaseProvider)
+                  .settingsDao
+                  .setShowGoalLine(wantOn);
+            },
+          )
+        else
+          ActionChip(
+            label: const Text('Set goal'),
+            avatar: const Icon(Icons.flag_outlined, size: 18),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
+          ),
         FilterChip(
           label: const Text('7-day avg'),
           avatar: const Icon(Icons.show_chart, size: 18),
@@ -315,50 +328,6 @@ class _DashboardState extends ConsumerState<_Dashboard> {
         ),
       ],
     );
-  }
-
-  Future<void> _promptSetGoal() async {
-    final controller = TextEditingController(
-      text: widget.goalKg == null
-          ? ''
-          : weightFromKg(widget.goalKg!, unit).toStringAsFixed(1),
-    );
-    final result = await showDialog<double>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Set goal weight'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'Goal',
-            suffixText: _unitLabel,
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final v = double.tryParse(
-                controller.text.trim().replaceAll(',', '.'),
-              );
-              if (v != null && v > 0) Navigator.pop(ctx, v);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (result == null) return;
-    final goalKg = weightToKg(result, unit);
-    await ref.read(databaseProvider).profileDao.updateGoalWeight(goalKg);
-    // Make sure the line is visible once a goal is set.
-    await ref.read(databaseProvider).settingsDao.setShowGoalLine(true);
   }
 
   Widget _bmiCard(BuildContext context, double currentKg) {
