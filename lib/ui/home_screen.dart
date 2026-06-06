@@ -9,6 +9,7 @@ import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import 'add_entry_sheet.dart';
 import 'widgets/stat_card.dart';
+import 'widgets/weight_chart.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -126,6 +127,15 @@ class _Dashboard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         _bmiCard(context, today.weightKg),
+        if (daily.length >= 2) ...[
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+              child: WeightChart(daily: daily, unit: unit),
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
         Text('Recent', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
