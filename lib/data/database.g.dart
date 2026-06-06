@@ -431,15 +431,16 @@ class $WeightEntriesTable extends WeightEntries
       'PRIMARY KEY AUTOINCREMENT',
     ),
   );
-  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  static const VerificationMeta _measuredAtMeta = const VerificationMeta(
+    'measuredAt',
+  );
   @override
-  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
-    'date',
+  late final GeneratedColumn<DateTime> measuredAt = GeneratedColumn<DateTime>(
+    'measured_at',
     aliasedName,
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _weightKgMeta = const VerificationMeta(
     'weightKg',
@@ -488,7 +489,7 @@ class $WeightEntriesTable extends WeightEntries
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    date,
+    measuredAt,
     weightKg,
     note,
     createdAt,
@@ -509,13 +510,13 @@ class $WeightEntriesTable extends WeightEntries
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
-    if (data.containsKey('date')) {
+    if (data.containsKey('measured_at')) {
       context.handle(
-        _dateMeta,
-        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+        _measuredAtMeta,
+        measuredAt.isAcceptableOrUnknown(data['measured_at']!, _measuredAtMeta),
       );
     } else if (isInserting) {
-      context.missing(_dateMeta);
+      context.missing(_measuredAtMeta);
     }
     if (data.containsKey('weight_kg')) {
       context.handle(
@@ -556,9 +557,9 @@ class $WeightEntriesTable extends WeightEntries
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       )!,
-      date: attachedDatabase.typeMapping.read(
+      measuredAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
-        data['${effectivePrefix}date'],
+        data['${effectivePrefix}measured_at'],
       )!,
       weightKg: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
@@ -588,8 +589,9 @@ class $WeightEntriesTable extends WeightEntries
 class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   final int id;
 
-  /// The day this measurement is for. Unique → one entry per day.
-  final DateTime date;
+  /// Full timestamp of the reading (date + time). Not unique — several readings
+  /// per day are allowed; aggregation to a single daily value happens on read.
+  final DateTime measuredAt;
 
   /// Canonical weight in kilograms (always kg, regardless of display unit).
   final double weightKg;
@@ -598,7 +600,7 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   final DateTime updatedAt;
   const WeightEntry({
     required this.id,
-    required this.date,
+    required this.measuredAt,
     required this.weightKg,
     this.note,
     required this.createdAt,
@@ -608,7 +610,7 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
-    map['date'] = Variable<DateTime>(date);
+    map['measured_at'] = Variable<DateTime>(measuredAt);
     map['weight_kg'] = Variable<double>(weightKg);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
@@ -621,7 +623,7 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   WeightEntriesCompanion toCompanion(bool nullToAbsent) {
     return WeightEntriesCompanion(
       id: Value(id),
-      date: Value(date),
+      measuredAt: Value(measuredAt),
       weightKg: Value(weightKg),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
@@ -636,7 +638,7 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return WeightEntry(
       id: serializer.fromJson<int>(json['id']),
-      date: serializer.fromJson<DateTime>(json['date']),
+      measuredAt: serializer.fromJson<DateTime>(json['measuredAt']),
       weightKg: serializer.fromJson<double>(json['weightKg']),
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -648,7 +650,7 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
-      'date': serializer.toJson<DateTime>(date),
+      'measuredAt': serializer.toJson<DateTime>(measuredAt),
       'weightKg': serializer.toJson<double>(weightKg),
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -658,14 +660,14 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
 
   WeightEntry copyWith({
     int? id,
-    DateTime? date,
+    DateTime? measuredAt,
     double? weightKg,
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => WeightEntry(
     id: id ?? this.id,
-    date: date ?? this.date,
+    measuredAt: measuredAt ?? this.measuredAt,
     weightKg: weightKg ?? this.weightKg,
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
@@ -674,7 +676,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   WeightEntry copyWithCompanion(WeightEntriesCompanion data) {
     return WeightEntry(
       id: data.id.present ? data.id.value : this.id,
-      date: data.date.present ? data.date.value : this.date,
+      measuredAt: data.measuredAt.present
+          ? data.measuredAt.value
+          : this.measuredAt,
       weightKg: data.weightKg.present ? data.weightKg.value : this.weightKg,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
@@ -686,7 +690,7 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   String toString() {
     return (StringBuffer('WeightEntry(')
           ..write('id: $id, ')
-          ..write('date: $date, ')
+          ..write('measuredAt: $measuredAt, ')
           ..write('weightKg: $weightKg, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
@@ -697,13 +701,13 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
 
   @override
   int get hashCode =>
-      Object.hash(id, date, weightKg, note, createdAt, updatedAt);
+      Object.hash(id, measuredAt, weightKg, note, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is WeightEntry &&
           other.id == this.id &&
-          other.date == this.date &&
+          other.measuredAt == this.measuredAt &&
           other.weightKg == this.weightKg &&
           other.note == this.note &&
           other.createdAt == this.createdAt &&
@@ -712,14 +716,14 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
 
 class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
   final Value<int> id;
-  final Value<DateTime> date;
+  final Value<DateTime> measuredAt;
   final Value<double> weightKg;
   final Value<String?> note;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const WeightEntriesCompanion({
     this.id = const Value.absent(),
-    this.date = const Value.absent(),
+    this.measuredAt = const Value.absent(),
     this.weightKg = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -727,16 +731,16 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
   });
   WeightEntriesCompanion.insert({
     this.id = const Value.absent(),
-    required DateTime date,
+    required DateTime measuredAt,
     required double weightKg,
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
-  }) : date = Value(date),
+  }) : measuredAt = Value(measuredAt),
        weightKg = Value(weightKg);
   static Insertable<WeightEntry> custom({
     Expression<int>? id,
-    Expression<DateTime>? date,
+    Expression<DateTime>? measuredAt,
     Expression<double>? weightKg,
     Expression<String>? note,
     Expression<DateTime>? createdAt,
@@ -744,7 +748,7 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (date != null) 'date': date,
+      if (measuredAt != null) 'measured_at': measuredAt,
       if (weightKg != null) 'weight_kg': weightKg,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
@@ -754,7 +758,7 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
 
   WeightEntriesCompanion copyWith({
     Value<int>? id,
-    Value<DateTime>? date,
+    Value<DateTime>? measuredAt,
     Value<double>? weightKg,
     Value<String?>? note,
     Value<DateTime>? createdAt,
@@ -762,7 +766,7 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
   }) {
     return WeightEntriesCompanion(
       id: id ?? this.id,
-      date: date ?? this.date,
+      measuredAt: measuredAt ?? this.measuredAt,
       weightKg: weightKg ?? this.weightKg,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
@@ -776,8 +780,8 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
-    if (date.present) {
-      map['date'] = Variable<DateTime>(date.value);
+    if (measuredAt.present) {
+      map['measured_at'] = Variable<DateTime>(measuredAt.value);
     }
     if (weightKg.present) {
       map['weight_kg'] = Variable<double>(weightKg.value);
@@ -798,7 +802,7 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
   String toString() {
     return (StringBuffer('WeightEntriesCompanion(')
           ..write('id: $id, ')
-          ..write('date: $date, ')
+          ..write('measuredAt: $measuredAt, ')
           ..write('weightKg: $weightKg, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
@@ -1462,7 +1466,7 @@ typedef $$ProfilesTableProcessedTableManager =
 typedef $$WeightEntriesTableCreateCompanionBuilder =
     WeightEntriesCompanion Function({
       Value<int> id,
-      required DateTime date,
+      required DateTime measuredAt,
       required double weightKg,
       Value<String?> note,
       Value<DateTime> createdAt,
@@ -1471,7 +1475,7 @@ typedef $$WeightEntriesTableCreateCompanionBuilder =
 typedef $$WeightEntriesTableUpdateCompanionBuilder =
     WeightEntriesCompanion Function({
       Value<int> id,
-      Value<DateTime> date,
+      Value<DateTime> measuredAt,
       Value<double> weightKg,
       Value<String?> note,
       Value<DateTime> createdAt,
@@ -1492,8 +1496,8 @@ class $$WeightEntriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get date => $composableBuilder(
-    column: $table.date,
+  ColumnFilters<DateTime> get measuredAt => $composableBuilder(
+    column: $table.measuredAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1532,8 +1536,8 @@ class $$WeightEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get date => $composableBuilder(
-    column: $table.date,
+  ColumnOrderings<DateTime> get measuredAt => $composableBuilder(
+    column: $table.measuredAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -1570,8 +1574,10 @@ class $$WeightEntriesTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get date =>
-      $composableBuilder(column: $table.date, builder: (column) => column);
+  GeneratedColumn<DateTime> get measuredAt => $composableBuilder(
+    column: $table.measuredAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get weightKg =>
       $composableBuilder(column: $table.weightKg, builder: (column) => column);
@@ -1618,14 +1624,14 @@ class $$WeightEntriesTableTableManager
           updateCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                Value<DateTime> date = const Value.absent(),
+                Value<DateTime> measuredAt = const Value.absent(),
                 Value<double> weightKg = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WeightEntriesCompanion(
                 id: id,
-                date: date,
+                measuredAt: measuredAt,
                 weightKg: weightKg,
                 note: note,
                 createdAt: createdAt,
@@ -1634,14 +1640,14 @@ class $$WeightEntriesTableTableManager
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
-                required DateTime date,
+                required DateTime measuredAt,
                 required double weightKg,
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WeightEntriesCompanion.insert(
                 id: id,
-                date: date,
+                measuredAt: measuredAt,
                 weightKg: weightKg,
                 note: note,
                 createdAt: createdAt,

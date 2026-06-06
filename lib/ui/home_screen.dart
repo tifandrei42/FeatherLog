@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../data/database.dart';
 import '../domain/bmi.dart';
+import '../domain/daily.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import 'add_entry_sheet.dart';
@@ -99,25 +100,32 @@ class _Dashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final latest = entries.first;
-    final previous = entries.length > 1 ? entries[1] : null;
+    // Aggregate raw readings to one value per day; current weight, BMI and the
+    // trend all use the smoothed daily series, not individual readings.
+    final daily = dailyAverages(
+      entries.map(
+        (e) => Reading(measuredAt: e.measuredAt, weightKg: e.weightKg),
+      ),
+    );
+    final today = daily.last; // entries is non-empty here
+    final yesterday = daily.length > 1 ? daily[daily.length - 2] : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
       children: [
         StatCard(
           label: 'Current weight',
-          value: _fmtWeight(latest.weightKg),
-          sublabel: DateFormat.yMMMMd().format(latest.date),
-          trailing: previous == null
+          value: _fmtWeight(today.weightKg),
+          sublabel: DateFormat.yMMMMd().format(today.day),
+          trailing: yesterday == null
               ? null
               : _TrendArrow(
-                  deltaKg: latest.weightKg - previous.weightKg,
+                  deltaKg: today.weightKg - yesterday.weightKg,
                   unit: unit,
                 ),
         ),
         const SizedBox(height: 8),
-        _bmiCard(context),
+        _bmiCard(context, today.weightKg),
         const SizedBox(height: 24),
         Text('Recent', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -126,7 +134,7 @@ class _Dashboard extends StatelessWidget {
     );
   }
 
-  Widget _bmiCard(BuildContext context) {
+  Widget _bmiCard(BuildContext context, double currentKg) {
     if (heightCm == null) {
       return Card(
         child: ListTile(
@@ -136,10 +144,7 @@ class _Dashboard extends StatelessWidget {
         ),
       );
     }
-    final bmi = calculateBmi(
-      weightKg: entries.first.weightKg,
-      heightCm: heightCm!,
-    );
+    final bmi = calculateBmi(weightKg: currentKg, heightCm: heightCm!);
     return StatCard(
       label: 'BMI',
       value: bmi.toStringAsFixed(1),
@@ -194,7 +199,12 @@ class _EntryTile extends StatelessWidget {
       dense: true,
       title: Text('${v.toStringAsFixed(1)} $unitLabel'),
       subtitle: entry.note == null ? null : Text(entry.note!),
-      trailing: Text(DateFormat.MMMd().format(entry.date)),
+      trailing: Text(
+        '${DateFormat.MMMd().format(entry.measuredAt)}\n'
+        '${DateFormat.Hm().format(entry.measuredAt)}',
+        textAlign: TextAlign.end,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
       onTap: () => showAddEntrySheet(context, existing: entry),
     );
   }

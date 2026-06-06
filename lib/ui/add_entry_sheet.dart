@@ -49,7 +49,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   @override
   void initState() {
     super.initState();
-    _date = widget.existing?.date ?? _today();
+    _date = widget.existing?.measuredAt ?? _today();
     final existingKg = widget.existing?.weightKg;
     _weightController = TextEditingController(
       text: existingKg == null
@@ -91,15 +91,44 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     final value = double.parse(_weightController.text.replaceAll(',', '.'));
     final weightKg = weightToKg(value, _unit);
     final note = _noteController.text.trim();
+    final dao = ref.read(databaseProvider).weightEntryDao;
+    final existing = widget.existing;
 
-    await ref
-        .read(databaseProvider)
-        .weightEntryDao
-        .upsertForDate(
-          date: _date,
-          weightKg: weightKg,
-          note: note.isEmpty ? null : note,
-        );
+    if (existing == null) {
+      // New reading: stamp with the chosen day at the current time so distinct
+      // readings stay ordered.
+      final now = DateTime.now();
+      final measuredAt = DateTime(
+        _date.year,
+        _date.month,
+        _date.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
+      await dao.addReading(
+        measuredAt: measuredAt,
+        weightKg: weightKg,
+        note: note.isEmpty ? null : note,
+      );
+    } else {
+      // Edit: keep the original time-of-day, apply the (possibly changed) date.
+      final original = existing.measuredAt;
+      final measuredAt = DateTime(
+        _date.year,
+        _date.month,
+        _date.day,
+        original.hour,
+        original.minute,
+        original.second,
+      );
+      await dao.updateReading(
+        id: existing.id,
+        measuredAt: measuredAt,
+        weightKg: weightKg,
+        note: note.isEmpty ? null : note,
+      );
+    }
     if (mounted) Navigator.of(context).pop();
   }
 

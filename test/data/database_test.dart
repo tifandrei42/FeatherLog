@@ -19,55 +19,41 @@ void main() {
 
   group('WeightEntries', () {
     test('insert then read back the row', () async {
-      final date = DateTime(2026, 5, 28);
+      final at = DateTime(2026, 5, 28, 7, 30);
       await db
           .into(db.weightEntries)
-          .insert(WeightEntriesCompanion.insert(date: date, weightKg: 80.4));
+          .insert(
+            WeightEntriesCompanion.insert(measuredAt: at, weightKg: 80.4),
+          );
 
       final rows = await db.select(db.weightEntries).get();
       expect(rows, hasLength(1));
       expect(rows.single.weightKg, 80.4);
-      expect(rows.single.date, date);
+      expect(rows.single.measuredAt, at);
       expect(rows.single.note, isNull);
     });
 
-    test('enforces one entry per day (unique date)', () async {
-      final date = DateTime(2026, 5, 28);
+    test('keeps multiple readings on the same day (no unique date)', () async {
+      final day = DateTime(2026, 5, 28);
       await db
           .into(db.weightEntries)
-          .insert(WeightEntriesCompanion.insert(date: date, weightKg: 80.0));
-
-      // A second plain insert on the same date must fail the unique constraint.
-      expect(
-        () => db
-            .into(db.weightEntries)
-            .insert(WeightEntriesCompanion.insert(date: date, weightKg: 81.0)),
-        throwsA(isA<SqliteException>()),
-      );
-    });
-
-    test('upsert by date overwrites the same day', () async {
-      final date = DateTime(2026, 5, 28);
-      // Upsert must target the unique `date` column, not the primary key —
-      // otherwise the fresh auto-increment id means no conflict and the unique
-      // index on date throws. This is the pattern the DAO will use for
-      // "log/overwrite today's weight".
-      Future<void> upsert(double kg) => db
+          .insert(
+            WeightEntriesCompanion.insert(
+              measuredAt: day.add(const Duration(hours: 7)),
+              weightKg: 80.0,
+            ),
+          );
+      await db
           .into(db.weightEntries)
           .insert(
-            WeightEntriesCompanion.insert(date: date, weightKg: kg),
-            onConflict: DoUpdate(
-              (old) => WeightEntriesCompanion(weightKg: Value(kg)),
-              target: [db.weightEntries.date],
+            WeightEntriesCompanion.insert(
+              measuredAt: day.add(const Duration(hours: 21)),
+              weightKg: 81.0,
             ),
           );
 
-      await upsert(80.0);
-      await upsert(79.5);
-
       final rows = await db.select(db.weightEntries).get();
-      expect(rows, hasLength(1));
-      expect(rows.single.weightKg, 79.5);
+      expect(rows, hasLength(2)); // both kept, no overwrite
     });
 
     test('update and delete a row', () async {
@@ -75,7 +61,7 @@ void main() {
           .into(db.weightEntries)
           .insert(
             WeightEntriesCompanion.insert(
-              date: DateTime(2026, 5, 28),
+              measuredAt: DateTime(2026, 5, 28, 8),
               weightKg: 80.0,
             ),
           );
@@ -83,7 +69,7 @@ void main() {
       await (db.update(db.weightEntries)..where((t) => t.id.equals(id))).write(
         const WeightEntriesCompanion(weightKg: Value(78.2)),
       );
-      var row = await (db.select(
+      final row = await (db.select(
         db.weightEntries,
       )..where((t) => t.id.equals(id))).getSingle();
       expect(row.weightKg, 78.2);

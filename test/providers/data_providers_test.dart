@@ -27,8 +27,8 @@ void main() {
     container.listen(entriesProvider, (_, _) {});
     expect(await container.read(entriesProvider.future), isEmpty);
 
-    await db.weightEntryDao.upsertForDate(
-      date: DateTime(2026, 5, 28),
+    await db.weightEntryDao.addReading(
+      measuredAt: DateTime(2026, 5, 28, 8),
       weightKg: 80.0,
     );
 

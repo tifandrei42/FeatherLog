@@ -26,13 +26,16 @@ class Profiles extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
-/// One logged measurement. Belongs to a profile; constrained to one entry per
-/// calendar day (editable) via a unique index on [date].
+/// One logged measurement. Belongs to a profile. Stores a full [measuredAt]
+/// timestamp and is NOT constrained to one row per day, so multiple readings on
+/// the same day are kept without data loss (DATA_MODEL.md §3). The trend/stats
+/// aggregate to one value per day in the domain layer.
 class WeightEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
 
-  /// The day this measurement is for. Unique → one entry per day.
-  DateTimeColumn get date => dateTime().unique()();
+  /// Full timestamp of the reading (date + time). Not unique — several readings
+  /// per day are allowed; aggregation to a single daily value happens on read.
+  DateTimeColumn get measuredAt => dateTime()();
 
   /// Canonical weight in kilograms (always kg, regardless of display unit).
   RealColumn get weightKg => real()();
