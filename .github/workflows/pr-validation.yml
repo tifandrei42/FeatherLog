@@ -11,6 +11,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege: this workflow only reads the repo and uploads coverage.
+permissions:
+  contents: read
+
 jobs:
   analyze-and-test:
     name: Analyze & Test

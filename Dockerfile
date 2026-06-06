@@ -18,6 +18,11 @@ RUN flutter pub get
 
 # Copy the rest of the source and build the release web bundle.
 COPY . .
+
+# Fetch the third-party web SQLite assets (drift worker + sqlite3 wasm). These
+# are library artifacts, not committed to the repo; the script pins versions.
+RUN bash tool/fetch_web_db_assets.sh
+
 RUN flutter build web --release
 
 # ---- Stage 2: serve ----
