@@ -8,6 +8,7 @@ import '../domain/daily.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import 'add_entry_sheet.dart';
+import 'widgets/day_detail_card.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/weight_chart.dart';
 
@@ -80,7 +81,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _Dashboard extends StatelessWidget {
+class _Dashboard extends StatefulWidget {
   const _Dashboard({
     required this.entries,
     required this.unit,
@@ -92,6 +93,17 @@ class _Dashboard extends StatelessWidget {
   final WeightUnit unit;
   final double? heightCm;
 
+  @override
+  State<_Dashboard> createState() => _DashboardState();
+}
+
+class _DashboardState extends State<_Dashboard> {
+  /// The day currently selected on the chart (drives the detail card).
+  DateTime? _selectedDay;
+
+  WeightUnit get unit => widget.unit;
+  double? get heightCm => widget.heightCm;
+
   String get _unitLabel => unit == WeightUnit.lb ? 'lb' : 'kg';
 
   String _fmtWeight(double kg) {
@@ -99,17 +111,37 @@ class _Dashboard extends StatelessWidget {
     return '${v.toStringAsFixed(1)} $_unitLabel';
   }
 
+  /// The first note found among the readings on [day], if any.
+  String? _noteForDay(DateTime day) {
+    for (final e in widget.entries) {
+      final d = DateTime(
+        e.measuredAt.year,
+        e.measuredAt.month,
+        e.measuredAt.day,
+      );
+      if (d == day && e.note != null && e.note!.isNotEmpty) return e.note;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Aggregate raw readings to one value per day; current weight, BMI and the
     // trend all use the smoothed daily series, not individual readings.
     final daily = dailyAverages(
-      entries.map(
+      widget.entries.map(
         (e) => Reading(measuredAt: e.measuredAt, weightKg: e.weightKg),
       ),
     );
     final today = daily.last; // entries is non-empty here
     final yesterday = daily.length > 1 ? daily[daily.length - 2] : null;
+
+    // Resolve the selected day (clearing it if it no longer exists).
+    final selectedIndex = _selectedDay == null
+        ? -1
+        : daily.indexWhere((d) => d.day == _selectedDay);
+    final selected = selectedIndex >= 0 ? daily[selectedIndex] : null;
+    final selectedPrev = selectedIndex > 0 ? daily[selectedIndex - 1] : null;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
@@ -132,14 +164,36 @@ class _Dashboard extends StatelessWidget {
           Card(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
-              child: WeightChart(daily: daily, unit: unit),
+              child: WeightChart(
+                daily: daily,
+                unit: unit,
+                selectedDay: selected?.day,
+                onDaySelected: (d) => setState(() => _selectedDay = d?.day),
+              ),
             ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            child: selected == null
+                ? const SizedBox(width: double.infinity)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: DayDetailCard(
+                      day: selected,
+                      previous: selectedPrev,
+                      unit: unit,
+                      heightCm: heightCm,
+                      note: _noteForDay(selected.day),
+                      onClose: () => setState(() => _selectedDay = null),
+                    ),
+                  ),
           ),
         ],
         const SizedBox(height: 24),
         Text('Recent', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        ...entries.take(10).map((e) => _EntryTile(entry: e, unit: unit)),
+        ...widget.entries.take(10).map((e) => _EntryTile(entry: e, unit: unit)),
       ],
     );
   }

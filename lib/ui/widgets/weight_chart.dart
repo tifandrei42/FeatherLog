@@ -11,11 +11,24 @@ import '../../domain/units.dart';
 /// layer). With a single day it shows just the point; the trend line needs at
 /// least two days. Values are shown in the user's [unit]; storage stays kg.
 class WeightChart extends StatelessWidget {
-  const WeightChart({super.key, required this.daily, required this.unit});
+  const WeightChart({
+    super.key,
+    required this.daily,
+    required this.unit,
+    this.onDaySelected,
+    this.selectedDay,
+  });
 
   /// Oldest-first daily series (as produced by `dailyAverages`).
   final List<DailyWeight> daily;
   final WeightUnit unit;
+
+  /// Called with the nearest day when the chart is tapped/dragged, or null when
+  /// the touch ends without a selection.
+  final ValueChanged<DailyWeight?>? onDaySelected;
+
+  /// The currently selected day, highlighted on the line.
+  final DateTime? selectedDay;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +53,11 @@ class WeightChart extends StatelessWidget {
     final maxX = spots.last.x;
     // Aim for ~4 date labels across the axis.
     final labelStep = (maxX / 4).ceilToDouble().clamp(1.0, double.infinity);
+
+    // Index of the currently selected day, for the highlight dot.
+    final selectedIndex = selectedDay == null
+        ? -1
+        : daily.indexWhere((d) => d.day == selectedDay);
 
     return SizedBox(
       height: 220,
@@ -106,14 +124,50 @@ class WeightChart extends StatelessWidget {
               preventCurveOverShooting: true,
               color: theme.colorScheme.primary,
               barWidth: 3,
-              dotData: FlDotData(show: spots.length <= 14),
+              dotData: FlDotData(
+                // Show all dots on short series; otherwise just the selected one.
+                show: spots.length <= 14 || selectedIndex >= 0,
+                checkToShowDot: (spot, _) =>
+                    spots.length <= 14 || spot.x == selectedIndex.toDouble(),
+                getDotPainter: (spot, _, _, _) {
+                  final isSelected =
+                      selectedIndex >= 0 && spot.x == selectedIndex.toDouble();
+                  return FlDotCirclePainter(
+                    radius: isSelected ? 6 : 3,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.primary.withValues(alpha: 0.7),
+                    strokeWidth: isSelected ? 2 : 0,
+                    strokeColor: theme.colorScheme.surface,
+                  );
+                },
+              ),
               belowBarData: BarAreaData(
                 show: true,
                 color: theme.colorScheme.primary.withValues(alpha: 0.12),
               ),
             ),
           ],
-          lineTouchData: const LineTouchData(enabled: false),
+          lineTouchData: LineTouchData(
+            enabled: onDaySelected != null,
+            // Use the built-in tooltip sparingly; the rich detail lives in the
+            // card below the chart (DESIGN §3.1).
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (spots) => spots.map((_) => null).toList(),
+            ),
+            touchCallback: (event, response) {
+              if (onDaySelected == null) return;
+              final spot = response?.lineBarSpots?.firstOrNull;
+              if (spot == null) {
+                if (event is FlTapUpEvent || event is FlPanEndEvent) {
+                  onDaySelected!(null);
+                }
+                return;
+              }
+              final i = spot.x.round();
+              if (i >= 0 && i < daily.length) onDaySelected!(daily[i]);
+            },
+          ),
         ),
       ),
     );
