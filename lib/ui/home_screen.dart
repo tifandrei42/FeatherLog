@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../data/database.dart';
+import '../dev/dev_menu_screen.dart';
 import '../domain/bmi.dart';
 import '../domain/daily.dart';
 import '../domain/units.dart';
@@ -27,7 +29,21 @@ class HomeScreen extends ConsumerWidget {
         : WeightUnit.kg;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('FeatherLog')),
+      appBar: AppBar(
+        title: const Text('FeatherLog'),
+        actions: [
+          // Dev-only entry to the developer tools. kDebugMode is a const false
+          // in release builds, so this whole action is tree-shaken out.
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.science_outlined),
+              tooltip: 'Developer tools',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const DevMenuScreen()),
+              ),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => showAddEntrySheet(context),
         icon: const Icon(Icons.add),
