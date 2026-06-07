@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import 'daos/body_measurement_dao.dart';
 import 'daos/profile_dao.dart';
 import 'daos/settings_dao.dart';
 import 'daos/weight_entry_dao.dart';
@@ -17,8 +18,8 @@ part 'database.g.dart';
 /// sqlite3 WASM build on web — so the same code runs everywhere, including the
 /// Docker web demo.
 @DriftDatabase(
-  tables: [Profiles, WeightEntries, Settings],
-  daos: [WeightEntryDao, ProfileDao, SettingsDao],
+  tables: [Profiles, WeightEntries, Settings, BodyMeasurements],
+  daos: [WeightEntryDao, ProfileDao, SettingsDao, BodyMeasurementDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -27,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +49,11 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(weightEntries, weightEntries.musclePct);
         await m.addColumn(weightEntries, weightEntries.waterPct);
       }
+      // v3 → v4: add the BodyMeasurements table (additive; no existing data
+      // touched).
+      if (from < 4) {
+        await m.createTable(bodyMeasurements);
+      }
     },
   );
 
@@ -59,6 +65,9 @@ class AppDatabase extends _$AppDatabase {
     return transaction(() async {
       await weightEntryDao.deleteAllEntries();
       await weightEntryDao.bulkInsert(result.entries);
+
+      await bodyMeasurementDao.deleteAll();
+      await bodyMeasurementDao.bulkInsert(result.measurements);
 
       if (result.heightCm != null) {
         await profileDao.updateHeight(result.heightCm);

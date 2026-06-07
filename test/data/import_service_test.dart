@@ -189,4 +189,58 @@ void main() {
       await fresh.close();
     });
   });
+
+  group('body measurements (issue #48)', () {
+    test('parses measurements; absent list is fine', () {
+      final r = importer.parse(
+        '{"schema_version":2,"entries":[],"measurements":[{'
+        '"measured_at":"2026-05-28T08:00:00Z","type":"waist","value_cm":85.0}]}',
+      );
+      expect(r.isOk, isTrue);
+      expect(r.measurements, hasLength(1));
+      expect(r.measurements.single.type.value, 'waist');
+      expect(r.measurements.single.valueCm.value, 85.0);
+
+      final noList = importer.parse('{"schema_version":2,"entries":[]}');
+      expect(noList.isOk, isTrue);
+      expect(noList.measurements, isEmpty);
+    });
+
+    test('rejects an invalid measurement value/type', () {
+      final badValue = importer.parse(
+        '{"schema_version":2,"entries":[],"measurements":[{'
+        '"measured_at":"2026-05-28T08:00:00Z","type":"waist","value_cm":0}]}',
+      );
+      expect(badValue.isOk, isFalse);
+      final badType = importer.parse(
+        '{"schema_version":2,"entries":[],"measurements":[{'
+        '"measured_at":"2026-05-28T08:00:00Z","type":"","value_cm":85}]}',
+      );
+      expect(badType.isOk, isFalse);
+    });
+
+    test('export → import round-trips measurements', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      await db.bodyMeasurementDao.addMeasurement(
+        measuredAt: DateTime.utc(2026, 5, 28, 8),
+        type: 'waist',
+        valueCm: 85.0,
+      );
+      final json = const ExportService().toJson(
+        profile: await db.profileDao.getOrCreateProfile(),
+        settings: await db.settingsDao.getOrCreateSettings(),
+        entries: await db.weightEntryDao.getAllEntries(),
+        measurements: await db.bodyMeasurementDao.getAll(),
+        exportedAt: DateTime.utc(2026, 5, 30),
+      );
+
+      final fresh = AppDatabase.forTesting(NativeDatabase.memory());
+      await fresh.applyImport(const ImportService().parse(json));
+      final m = (await fresh.bodyMeasurementDao.getAll()).single;
+      expect(m.type, 'waist');
+      expect(m.valueCm, 85.0);
+      await db.close();
+      await fresh.close();
+    });
+  });
 }
