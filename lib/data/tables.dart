@@ -52,6 +52,29 @@ class WeightEntries extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
+/// Body measurements (waist, chest, hips, neck, thigh, …), stored **long
+/// format**: one row per reading with a [type] discriminator, so adding a new
+/// body part is data, not a schema migration. Value is canonical centimetres;
+/// display conversion (cm/in) happens in the UI via units.dart. Like
+/// WeightEntries, multiple readings per day are allowed.
+class BodyMeasurements extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// Full timestamp of the reading.
+  DateTimeColumn get measuredAt => dateTime()();
+
+  /// Which body part, e.g. 'waist' | 'chest' | 'hips' | 'neck' | 'thigh'.
+  TextColumn get type => text()();
+
+  /// Canonical measurement in centimetres.
+  RealColumn get valueCm => real()();
+
+  TextColumn get note => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
 /// Presentation preferences. Single row, kept separate from [Profiles] because
 /// these are UI choices, not identity/health facts.
 class Settings extends Table {

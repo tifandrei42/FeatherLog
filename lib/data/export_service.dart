@@ -28,6 +28,7 @@ class ExportService {
     required Setting? settings,
     required List<WeightEntry> entries,
     required DateTime exportedAt,
+    List<BodyMeasurement> measurements = const [],
   }) {
     final map = {
       'schema_version': schemaVersion,
@@ -52,6 +53,15 @@ class ExportService {
             'body_fat_pct': e.bodyFatPct,
             'muscle_pct': e.musclePct,
             'water_pct': e.waterPct,
+          },
+      ],
+      'measurements': [
+        for (final m in measurements)
+          {
+            'measured_at': m.measuredAt.toUtc().toIso8601String(),
+            'type': m.type,
+            'value_cm': m.valueCm,
+            'note': m.note,
           },
       ],
     };

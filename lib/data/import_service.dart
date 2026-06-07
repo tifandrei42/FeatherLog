@@ -13,6 +13,7 @@ class ImportResult {
   const ImportResult._({
     this.error,
     this.entries = const [],
+    this.measurements = const [],
     this.heightCm,
     this.goalWeightKg,
     this.weightUnit,
@@ -24,6 +25,7 @@ class ImportResult {
 
   factory ImportResult.success({
     required List<WeightEntriesCompanion> entries,
+    List<BodyMeasurementsCompanion> measurements = const [],
     double? heightCm,
     double? goalWeightKg,
     String? weightUnit,
@@ -31,6 +33,7 @@ class ImportResult {
     String? theme,
   }) => ImportResult._(
     entries: entries,
+    measurements: measurements,
     heightCm: heightCm,
     goalWeightKg: goalWeightKg,
     weightUnit: weightUnit,
@@ -40,6 +43,7 @@ class ImportResult {
 
   final String? error;
   final List<WeightEntriesCompanion> entries;
+  final List<BodyMeasurementsCompanion> measurements;
   final double? heightCm;
   final double? goalWeightKg;
   final String? weightUnit;
@@ -120,11 +124,43 @@ class ImportService {
       );
     }
 
+    // Body measurements (absent in v1 / pre-#48 files → empty list).
+    final measurements = <BodyMeasurementsCompanion>[];
+    final rawMeasurements = decoded['measurements'];
+    if (rawMeasurements is List) {
+      for (final raw in rawMeasurements) {
+        if (raw is! Map<String, dynamic>) {
+          return ImportResult.failure('A measurement is malformed.');
+        }
+        final at = DateTime.tryParse('${raw['measured_at']}');
+        final type = raw['type'];
+        final value = (raw['value_cm'] as num?)?.toDouble();
+        if (at == null) {
+          return ImportResult.failure('A measurement has an invalid date.');
+        }
+        if (type is! String || type.isEmpty) {
+          return ImportResult.failure('A measurement has an invalid type.');
+        }
+        if (value == null || value <= 0 || value > 500) {
+          return ImportResult.failure('A measurement has an invalid value.');
+        }
+        measurements.add(
+          BodyMeasurementsCompanion.insert(
+            measuredAt: at,
+            type: type,
+            valueCm: value,
+            note: Value(raw['note'] as String?),
+          ),
+        );
+      }
+    }
+
     final profile = decoded['profile'];
     final settings = decoded['settings'];
 
     return ImportResult.success(
       entries: byTimestamp.values.toList(),
+      measurements: measurements,
       heightCm: profile is Map
           ? (profile['height_cm'] as num?)?.toDouble()
           : null,
