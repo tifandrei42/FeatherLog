@@ -25,6 +25,7 @@ void main() {
     theme: 'system',
     showMovingAvg: true,
     showGoalLine: true,
+    palette: 'meadow',
   );
   final entries = [
     WeightEntry(

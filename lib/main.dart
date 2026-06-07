@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers/data_providers.dart';
-import 'ui/home_screen.dart';
+import 'ui/app_shell.dart';
 import 'ui/theme/app_theme.dart';
+import 'ui/theme/tokens.dart';
 
 void main() {
   runApp(const ProviderScope(child: FeatherLogApp()));
@@ -22,13 +23,14 @@ class FeatherLogApp extends ConsumerWidget {
       _ => ThemeMode.system,
     };
 
+    final palette = paletteById(settings?.palette);
     return MaterialApp(
       title: 'FeatherLog',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      home: const HomeScreen(),
+      theme: AppTheme.light(palette),
+      darkTheme: AppTheme.dark(palette),
+      home: const AppShell(),
     );
   }
 }

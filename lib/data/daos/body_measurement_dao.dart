@@ -13,6 +13,14 @@ class BodyMeasurementDao extends DatabaseAccessor<AppDatabase>
     with _$BodyMeasurementDaoMixin {
   BodyMeasurementDao(super.db);
 
+  /// All readings of every type, newest first, as a reactive stream. Drives the
+  /// Body screen, which groups by [BodyMeasurements.type] on read.
+  Stream<List<BodyMeasurement>> watchAll() {
+    return (select(
+      bodyMeasurements,
+    )..orderBy([(t) => OrderingTerm.desc(t.measuredAt)])).watch();
+  }
+
   /// All readings of [type], newest first, as a reactive stream.
   Stream<List<BodyMeasurement>> watchByType(String type) {
     return (select(bodyMeasurements)

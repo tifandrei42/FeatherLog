@@ -15,6 +15,7 @@ import '../domain/daily.dart' show ChartRange;
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
+import 'theme/tokens.dart';
 
 /// Grouped, calm settings list (UI_DESIGN.md §8.5, US-13.x): units, body
 /// (height + goal), theme, default chart overlays, and an about/privacy note.
@@ -103,6 +104,17 @@ class SettingsScreen extends ConsumerWidget {
               ],
               selected: {settings?.theme ?? 'system'},
               onSelectionChanged: (s) => dao.settingsDao.updateTheme(s.first),
+            ),
+          ),
+          ListTile(
+            title: const Text('Palette'),
+            subtitle: const Text('Accent color used across the app'),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: _PaletteChooser(
+              selectedId: settings?.palette ?? featherPalettes.first.id,
+              onSelected: (id) => dao.settingsDao.updatePalette(id),
             ),
           ),
 
@@ -515,6 +527,84 @@ class _NumberDialogState extends State<_NumberDialog> {
         ),
         FilledButton(onPressed: _submit, child: const Text('Save')),
       ],
+    );
+  }
+}
+
+/// A row of color swatches for picking the accent [AccentPalette].
+class _PaletteChooser extends StatelessWidget {
+  const _PaletteChooser({required this.selectedId, required this.onSelected});
+
+  final String selectedId;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      children: [
+        for (final p in featherPalettes)
+          _Swatch(
+            color: p.primaryFor(brightness),
+            label: p.label,
+            selected: p.id == selectedId,
+            onTap: () => onSelected(p.id),
+          ),
+      ],
+    );
+  }
+}
+
+class _Swatch extends StatelessWidget {
+  const _Swatch({
+    required this.color,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Color color;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: selected ? scheme.onSurface : Colors.transparent,
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.5),
+                  blurRadius: 8,
+                  spreadRadius: -1,
+                ),
+              ],
+            ),
+            child: selected
+                ? const Icon(Icons.check, color: Colors.white, size: 22)
+                : null,
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: Theme.of(context).textTheme.labelSmall),
+        ],
+      ),
     );
   }
 }

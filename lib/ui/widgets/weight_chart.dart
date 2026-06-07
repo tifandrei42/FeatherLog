@@ -202,7 +202,14 @@ class WeightChart extends StatelessWidget {
               ),
               belowBarData: BarAreaData(
                 show: true,
-                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.colorScheme.primary.withValues(alpha: 0.28),
+                    theme.colorScheme.primary.withValues(alpha: 0.02),
+                  ],
+                ),
               ),
             ),
           ],
