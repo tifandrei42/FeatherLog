@@ -10,6 +10,8 @@ import 'package:share_plus/share_plus.dart';
 
 import '../data/export_service.dart';
 import '../data/import_service.dart';
+import '../data/pdf_report_service.dart';
+import '../domain/daily.dart' show ChartRange;
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
@@ -132,6 +134,12 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _export(context, ref, asCsv: true),
           ),
           ListTile(
+            leading: const Icon(Icons.picture_as_pdf_outlined),
+            title: const Text('Export PDF report'),
+            subtitle: const Text('A shareable summary for your doctor'),
+            onTap: () => _exportPdf(context, ref),
+          ),
+          ListTile(
             leading: const Icon(Icons.restore),
             title: const Text('Import from JSON'),
             subtitle: const Text('Restore from a backup (replaces all data)'),
@@ -204,6 +212,55 @@ class SettingsScreen extends ConsumerWidget {
         final dir = await getTemporaryDirectory();
         final file = File('${dir.path}/$filename');
         await file.writeAsString(content);
+        await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Export failed. Please try again.')),
+      );
+    }
+  }
+
+  /// Builds a "doctor export" PDF over all history and shares it. Mirrors
+  /// [_export] (web shares bytes directly; native writes a temp file first).
+  Future<void> _exportPdf(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final db = ref.read(databaseProvider);
+    try {
+      final entries = await db.weightEntryDao.getAllEntries();
+      if (entries.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Nothing to export yet')),
+        );
+        return;
+      }
+      final bytes = await const PdfReportService().build(
+        profile: await db.profileDao.getOrCreateProfile(),
+        settings: await db.settingsDao.getOrCreateSettings(),
+        entries: entries,
+        measurements: await db.bodyMeasurementDao.getAll(),
+        range: ChartRange.all,
+        generatedAt: DateTime.now(),
+      );
+      const filename = 'featherlog_health_report.pdf';
+
+      if (kIsWeb) {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [
+              XFile.fromData(
+                bytes,
+                name: filename,
+                mimeType: 'application/pdf',
+              ),
+            ],
+            fileNameOverrides: [filename],
+          ),
+        );
+      } else {
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/$filename');
+        await file.writeAsBytes(bytes);
         await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
       }
     } catch (e) {
