@@ -16,6 +16,8 @@ class ImportResult {
     this.measurements = const [],
     this.heightCm,
     this.goalWeightKg,
+    this.sex,
+    this.birthDate,
     this.weightUnit,
     this.lengthUnit,
     this.theme,
@@ -28,6 +30,8 @@ class ImportResult {
     List<BodyMeasurementsCompanion> measurements = const [],
     double? heightCm,
     double? goalWeightKg,
+    String? sex,
+    DateTime? birthDate,
     String? weightUnit,
     String? lengthUnit,
     String? theme,
@@ -36,6 +40,8 @@ class ImportResult {
     measurements: measurements,
     heightCm: heightCm,
     goalWeightKg: goalWeightKg,
+    sex: sex,
+    birthDate: birthDate,
     weightUnit: weightUnit,
     lengthUnit: lengthUnit,
     theme: theme,
@@ -46,6 +52,8 @@ class ImportResult {
   final List<BodyMeasurementsCompanion> measurements;
   final double? heightCm;
   final double? goalWeightKg;
+  final String? sex;
+  final DateTime? birthDate;
   final String? weightUnit;
   final String? lengthUnit;
   final String? theme;
@@ -158,6 +166,15 @@ class ImportService {
     final profile = decoded['profile'];
     final settings = decoded['settings'];
 
+    // Birth date is optional; when present it must be a parseable date.
+    DateTime? birthDate;
+    if (profile is Map && profile['birth_date'] != null) {
+      birthDate = DateTime.tryParse('${profile['birth_date']}');
+      if (birthDate == null) {
+        return ImportResult.failure('The profile has an invalid birth date.');
+      }
+    }
+
     return ImportResult.success(
       entries: byTimestamp.values.toList(),
       measurements: measurements,
@@ -167,6 +184,8 @@ class ImportService {
       goalWeightKg: profile is Map
           ? (profile['goal_weight_kg'] as num?)?.toDouble()
           : null,
+      sex: profile is Map ? profile['sex'] as String? : null,
+      birthDate: birthDate,
       weightUnit: settings is Map ? settings['weight_unit'] as String? : null,
       lengthUnit: settings is Map ? settings['length_unit'] as String? : null,
       theme: settings is Map ? settings['theme'] as String? : null,
