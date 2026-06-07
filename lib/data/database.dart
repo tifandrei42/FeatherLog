@@ -75,6 +75,12 @@ class AppDatabase extends _$AppDatabase {
       if (result.goalWeightKg != null) {
         await profileDao.updateGoalWeight(result.goalWeightKg);
       }
+      if (result.sex != null) {
+        await profileDao.updateSex(result.sex);
+      }
+      if (result.birthDate != null) {
+        await profileDao.updateBirthDate(result.birthDate);
+      }
       if (result.weightUnit != null) {
         await settingsDao.updateWeightUnit(result.weightUnit!);
       }

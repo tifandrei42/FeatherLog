@@ -243,4 +243,53 @@ void main() {
       await fresh.close();
     });
   });
+
+  group('profile sex + birth date (issue #51)', () {
+    test('parses sex and birth_date from the profile', () {
+      final r = importer.parse(
+        '{"schema_version":2,"profile":{"sex":"female",'
+        '"birth_date":"2000-03-15T00:00:00.000Z"},"entries":[]}',
+      );
+      expect(r.isOk, isTrue);
+      expect(r.sex, 'female');
+      expect(r.birthDate, DateTime.utc(2000, 3, 15));
+    });
+
+    test('absent sex/birth_date is fine (null)', () {
+      final r = importer.parse('{"schema_version":2,"entries":[]}');
+      expect(r.isOk, isTrue);
+      expect(r.sex, isNull);
+      expect(r.birthDate, isNull);
+    });
+
+    test('an invalid birth_date is rejected', () {
+      final r = importer.parse(
+        '{"schema_version":2,"profile":{"birth_date":"nope"},"entries":[]}',
+      );
+      expect(r.isOk, isFalse);
+      expect(r.error, contains('invalid birth date'));
+    });
+
+    test('export → import round-trips sex and birth date', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      await db.profileDao.updateSex('male');
+      await db.profileDao.updateBirthDate(DateTime.utc(1990, 7, 1));
+      final json = const ExportService().toJson(
+        profile: await db.profileDao.getOrCreateProfile(),
+        settings: await db.settingsDao.getOrCreateSettings(),
+        entries: await db.weightEntryDao.getAllEntries(),
+        exportedAt: DateTime.utc(2026, 5, 30),
+      );
+
+      final fresh = AppDatabase.forTesting(NativeDatabase.memory());
+      await fresh.applyImport(const ImportService().parse(json));
+      final p = await fresh.profileDao.getOrCreateProfile();
+      expect(p.sex, 'male');
+      // drift reads DateTime back in local time; compare the instant, not the
+      // wall-clock representation / isUtc flag.
+      expect(p.birthDate!.isAtSameMomentAs(DateTime.utc(1990, 7, 1)), isTrue);
+      await db.close();
+      await fresh.close();
+    });
+  });
 }

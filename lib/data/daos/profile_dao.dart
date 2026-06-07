@@ -37,4 +37,22 @@ class ProfileDao extends DatabaseAccessor<AppDatabase> with _$ProfileDaoMixin {
       ProfilesCompanion(goalWeightKg: Value(goalWeightKg)),
     );
   }
+
+  /// Optional biological sex hint (free text, e.g. 'male' | 'female'). Pass null
+  /// to clear it. Does not affect BMI bands (see `domain/age.dart`).
+  Future<void> updateSex(String? sex) async {
+    final profile = await getOrCreateProfile();
+    await (update(profiles)..where((t) => t.id.equals(profile.id))).write(
+      ProfilesCompanion(sex: Value(sex)),
+    );
+  }
+
+  /// Optional birth date, used only to derive age for display/context. Pass null
+  /// to clear it.
+  Future<void> updateBirthDate(DateTime? birthDate) async {
+    final profile = await getOrCreateProfile();
+    await (update(profiles)..where((t) => t.id.equals(profile.id))).write(
+      ProfilesCompanion(birthDate: Value(birthDate)),
+    );
+  }
 }
