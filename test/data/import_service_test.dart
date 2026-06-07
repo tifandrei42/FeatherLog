@@ -129,4 +129,64 @@ void main() {
       await fresh.close();
     });
   });
+
+  group('body composition (issue #47)', () {
+    test('parses v2 body-composition fields', () {
+      final r = importer.parse(
+        '{"schema_version":2,"entries":[{'
+        '"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0,'
+        '"body_fat_pct":22.5,"muscle_pct":40.0,"water_pct":55.0}]}',
+      );
+      expect(r.isOk, isTrue);
+      final c = r.entries.single;
+      expect(c.bodyFatPct.value, 22.5);
+      expect(c.musclePct.value, 40.0);
+      expect(c.waterPct.value, 55.0);
+    });
+
+    test('v1 files (no composition fields) still import', () {
+      final r = importer.parse(
+        '{"schema_version":1,"entries":'
+        '[{"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0}]}',
+      );
+      expect(r.isOk, isTrue);
+      expect(r.entries.single.bodyFatPct.value, isNull);
+    });
+
+    test('out-of-range percentage is rejected', () {
+      final r = importer.parse(
+        '{"schema_version":2,"entries":[{'
+        '"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0,'
+        '"body_fat_pct":150}]}',
+      );
+      expect(r.isOk, isFalse);
+      expect(r.error, contains('invalid percentage'));
+    });
+
+    test('export → import preserves composition', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime.utc(2026, 5, 28, 8),
+        weightKg: 80.0,
+        bodyFatPct: 21.0,
+        musclePct: 41.0,
+        waterPct: 56.0,
+      );
+      final json = const ExportService().toJson(
+        profile: await db.profileDao.getOrCreateProfile(),
+        settings: await db.settingsDao.getOrCreateSettings(),
+        entries: await db.weightEntryDao.getAllEntries(),
+        exportedAt: DateTime.utc(2026, 5, 30),
+      );
+
+      final fresh = AppDatabase.forTesting(NativeDatabase.memory());
+      await fresh.applyImport(const ImportService().parse(json));
+      final e = (await fresh.weightEntryDao.getAllEntries()).single;
+      expect(e.bodyFatPct, 21.0);
+      expect(e.musclePct, 41.0);
+      expect(e.waterPct, 56.0);
+      await db.close();
+      await fresh.close();
+    });
+  });
 }

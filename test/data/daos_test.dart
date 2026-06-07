@@ -122,6 +122,29 @@ void main() {
       expect(await db.weightEntryDao.deleteAllEntries(), 3);
       expect(await db.weightEntryDao.getAllEntries(), isEmpty);
     });
+
+    test(
+      'addReading stores optional body composition; nulls by default',
+      () async {
+        await db.weightEntryDao.addReading(
+          measuredAt: DateTime(2026, 5, 28, 8),
+          weightKg: 80.0,
+          bodyFatPct: 22.0,
+          musclePct: 40.0,
+          waterPct: 55.0,
+        );
+        await db.weightEntryDao.addReading(
+          measuredAt: DateTime(2026, 5, 29, 8),
+          weightKg: 79.5,
+        );
+
+        final all = await db.weightEntryDao.getAllEntries(); // oldest first
+        expect(all.first.bodyFatPct, 22.0);
+        expect(all.first.musclePct, 40.0);
+        expect(all.first.waterPct, 55.0);
+        expect(all.last.bodyFatPct, isNull); // weight-only entry
+      },
+    );
   });
 
   group('ProfileDao', () {

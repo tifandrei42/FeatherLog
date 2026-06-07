@@ -462,6 +462,39 @@ class $WeightEntriesTable extends WeightEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _bodyFatPctMeta = const VerificationMeta(
+    'bodyFatPct',
+  );
+  @override
+  late final GeneratedColumn<double> bodyFatPct = GeneratedColumn<double>(
+    'body_fat_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _musclePctMeta = const VerificationMeta(
+    'musclePct',
+  );
+  @override
+  late final GeneratedColumn<double> musclePct = GeneratedColumn<double>(
+    'muscle_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _waterPctMeta = const VerificationMeta(
+    'waterPct',
+  );
+  @override
+  late final GeneratedColumn<double> waterPct = GeneratedColumn<double>(
+    'water_pct',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -492,6 +525,9 @@ class $WeightEntriesTable extends WeightEntries
     measuredAt,
     weightKg,
     note,
+    bodyFatPct,
+    musclePct,
+    waterPct,
     createdAt,
     updatedAt,
   ];
@@ -532,6 +568,27 @@ class $WeightEntriesTable extends WeightEntries
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('body_fat_pct')) {
+      context.handle(
+        _bodyFatPctMeta,
+        bodyFatPct.isAcceptableOrUnknown(
+          data['body_fat_pct']!,
+          _bodyFatPctMeta,
+        ),
+      );
+    }
+    if (data.containsKey('muscle_pct')) {
+      context.handle(
+        _musclePctMeta,
+        musclePct.isAcceptableOrUnknown(data['muscle_pct']!, _musclePctMeta),
+      );
+    }
+    if (data.containsKey('water_pct')) {
+      context.handle(
+        _waterPctMeta,
+        waterPct.isAcceptableOrUnknown(data['water_pct']!, _waterPctMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -569,6 +626,18 @@ class $WeightEntriesTable extends WeightEntries
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      bodyFatPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}body_fat_pct'],
+      ),
+      musclePct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}muscle_pct'],
+      ),
+      waterPct: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}water_pct'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -596,6 +665,12 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   /// Canonical weight in kilograms (always kg, regardless of display unit).
   final double weightKg;
   final String? note;
+
+  /// Optional body-composition percentages (0–100), nullable so existing rows
+  /// and weight-only entries stay valid. Free in FeatherLog (DATA_MODEL.md §8).
+  final double? bodyFatPct;
+  final double? musclePct;
+  final double? waterPct;
   final DateTime createdAt;
   final DateTime updatedAt;
   const WeightEntry({
@@ -603,6 +678,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     required this.measuredAt,
     required this.weightKg,
     this.note,
+    this.bodyFatPct,
+    this.musclePct,
+    this.waterPct,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -615,6 +693,15 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || bodyFatPct != null) {
+      map['body_fat_pct'] = Variable<double>(bodyFatPct);
+    }
+    if (!nullToAbsent || musclePct != null) {
+      map['muscle_pct'] = Variable<double>(musclePct);
+    }
+    if (!nullToAbsent || waterPct != null) {
+      map['water_pct'] = Variable<double>(waterPct);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -626,6 +713,15 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
       measuredAt: Value(measuredAt),
       weightKg: Value(weightKg),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      bodyFatPct: bodyFatPct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bodyFatPct),
+      musclePct: musclePct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(musclePct),
+      waterPct: waterPct == null && nullToAbsent
+          ? const Value.absent()
+          : Value(waterPct),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -641,6 +737,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
       measuredAt: serializer.fromJson<DateTime>(json['measuredAt']),
       weightKg: serializer.fromJson<double>(json['weightKg']),
       note: serializer.fromJson<String?>(json['note']),
+      bodyFatPct: serializer.fromJson<double?>(json['bodyFatPct']),
+      musclePct: serializer.fromJson<double?>(json['musclePct']),
+      waterPct: serializer.fromJson<double?>(json['waterPct']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -653,6 +752,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
       'measuredAt': serializer.toJson<DateTime>(measuredAt),
       'weightKg': serializer.toJson<double>(weightKg),
       'note': serializer.toJson<String?>(note),
+      'bodyFatPct': serializer.toJson<double?>(bodyFatPct),
+      'musclePct': serializer.toJson<double?>(musclePct),
+      'waterPct': serializer.toJson<double?>(waterPct),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -663,6 +765,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     DateTime? measuredAt,
     double? weightKg,
     Value<String?> note = const Value.absent(),
+    Value<double?> bodyFatPct = const Value.absent(),
+    Value<double?> musclePct = const Value.absent(),
+    Value<double?> waterPct = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => WeightEntry(
@@ -670,6 +775,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     measuredAt: measuredAt ?? this.measuredAt,
     weightKg: weightKg ?? this.weightKg,
     note: note.present ? note.value : this.note,
+    bodyFatPct: bodyFatPct.present ? bodyFatPct.value : this.bodyFatPct,
+    musclePct: musclePct.present ? musclePct.value : this.musclePct,
+    waterPct: waterPct.present ? waterPct.value : this.waterPct,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -681,6 +789,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
           : this.measuredAt,
       weightKg: data.weightKg.present ? data.weightKg.value : this.weightKg,
       note: data.note.present ? data.note.value : this.note,
+      bodyFatPct: data.bodyFatPct.present
+          ? data.bodyFatPct.value
+          : this.bodyFatPct,
+      musclePct: data.musclePct.present ? data.musclePct.value : this.musclePct,
+      waterPct: data.waterPct.present ? data.waterPct.value : this.waterPct,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -693,6 +806,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
           ..write('measuredAt: $measuredAt, ')
           ..write('weightKg: $weightKg, ')
           ..write('note: $note, ')
+          ..write('bodyFatPct: $bodyFatPct, ')
+          ..write('musclePct: $musclePct, ')
+          ..write('waterPct: $waterPct, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -700,8 +816,17 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, measuredAt, weightKg, note, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    measuredAt,
+    weightKg,
+    note,
+    bodyFatPct,
+    musclePct,
+    waterPct,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -710,6 +835,9 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
           other.measuredAt == this.measuredAt &&
           other.weightKg == this.weightKg &&
           other.note == this.note &&
+          other.bodyFatPct == this.bodyFatPct &&
+          other.musclePct == this.musclePct &&
+          other.waterPct == this.waterPct &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -719,6 +847,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
   final Value<DateTime> measuredAt;
   final Value<double> weightKg;
   final Value<String?> note;
+  final Value<double?> bodyFatPct;
+  final Value<double?> musclePct;
+  final Value<double?> waterPct;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const WeightEntriesCompanion({
@@ -726,6 +857,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     this.measuredAt = const Value.absent(),
     this.weightKg = const Value.absent(),
     this.note = const Value.absent(),
+    this.bodyFatPct = const Value.absent(),
+    this.musclePct = const Value.absent(),
+    this.waterPct = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -734,6 +868,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     required DateTime measuredAt,
     required double weightKg,
     this.note = const Value.absent(),
+    this.bodyFatPct = const Value.absent(),
+    this.musclePct = const Value.absent(),
+    this.waterPct = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : measuredAt = Value(measuredAt),
@@ -743,6 +880,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     Expression<DateTime>? measuredAt,
     Expression<double>? weightKg,
     Expression<String>? note,
+    Expression<double>? bodyFatPct,
+    Expression<double>? musclePct,
+    Expression<double>? waterPct,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -751,6 +891,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
       if (measuredAt != null) 'measured_at': measuredAt,
       if (weightKg != null) 'weight_kg': weightKg,
       if (note != null) 'note': note,
+      if (bodyFatPct != null) 'body_fat_pct': bodyFatPct,
+      if (musclePct != null) 'muscle_pct': musclePct,
+      if (waterPct != null) 'water_pct': waterPct,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -761,6 +904,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     Value<DateTime>? measuredAt,
     Value<double>? weightKg,
     Value<String?>? note,
+    Value<double?>? bodyFatPct,
+    Value<double?>? musclePct,
+    Value<double?>? waterPct,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -769,6 +915,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
       measuredAt: measuredAt ?? this.measuredAt,
       weightKg: weightKg ?? this.weightKg,
       note: note ?? this.note,
+      bodyFatPct: bodyFatPct ?? this.bodyFatPct,
+      musclePct: musclePct ?? this.musclePct,
+      waterPct: waterPct ?? this.waterPct,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -789,6 +938,15 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (bodyFatPct.present) {
+      map['body_fat_pct'] = Variable<double>(bodyFatPct.value);
+    }
+    if (musclePct.present) {
+      map['muscle_pct'] = Variable<double>(musclePct.value);
+    }
+    if (waterPct.present) {
+      map['water_pct'] = Variable<double>(waterPct.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -805,6 +963,9 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
           ..write('measuredAt: $measuredAt, ')
           ..write('weightKg: $weightKg, ')
           ..write('note: $note, ')
+          ..write('bodyFatPct: $bodyFatPct, ')
+          ..write('musclePct: $musclePct, ')
+          ..write('waterPct: $waterPct, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1469,6 +1630,9 @@ typedef $$WeightEntriesTableCreateCompanionBuilder =
       required DateTime measuredAt,
       required double weightKg,
       Value<String?> note,
+      Value<double?> bodyFatPct,
+      Value<double?> musclePct,
+      Value<double?> waterPct,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -1478,6 +1642,9 @@ typedef $$WeightEntriesTableUpdateCompanionBuilder =
       Value<DateTime> measuredAt,
       Value<double> weightKg,
       Value<String?> note,
+      Value<double?> bodyFatPct,
+      Value<double?> musclePct,
+      Value<double?> waterPct,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -1508,6 +1675,21 @@ class $$WeightEntriesTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get bodyFatPct => $composableBuilder(
+    column: $table.bodyFatPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get musclePct => $composableBuilder(
+    column: $table.musclePct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get waterPct => $composableBuilder(
+    column: $table.waterPct,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1551,6 +1733,21 @@ class $$WeightEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get bodyFatPct => $composableBuilder(
+    column: $table.bodyFatPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get musclePct => $composableBuilder(
+    column: $table.musclePct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get waterPct => $composableBuilder(
+    column: $table.waterPct,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1584,6 +1781,17 @@ class $$WeightEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<double> get bodyFatPct => $composableBuilder(
+    column: $table.bodyFatPct,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get musclePct =>
+      $composableBuilder(column: $table.musclePct, builder: (column) => column);
+
+  GeneratedColumn<double> get waterPct =>
+      $composableBuilder(column: $table.waterPct, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -1627,6 +1835,9 @@ class $$WeightEntriesTableTableManager
                 Value<DateTime> measuredAt = const Value.absent(),
                 Value<double> weightKg = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<double?> bodyFatPct = const Value.absent(),
+                Value<double?> musclePct = const Value.absent(),
+                Value<double?> waterPct = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WeightEntriesCompanion(
@@ -1634,6 +1845,9 @@ class $$WeightEntriesTableTableManager
                 measuredAt: measuredAt,
                 weightKg: weightKg,
                 note: note,
+                bodyFatPct: bodyFatPct,
+                musclePct: musclePct,
+                waterPct: waterPct,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -1643,6 +1857,9 @@ class $$WeightEntriesTableTableManager
                 required DateTime measuredAt,
                 required double weightKg,
                 Value<String?> note = const Value.absent(),
+                Value<double?> bodyFatPct = const Value.absent(),
+                Value<double?> musclePct = const Value.absent(),
+                Value<double?> waterPct = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WeightEntriesCompanion.insert(
@@ -1650,6 +1867,9 @@ class $$WeightEntriesTableTableManager
                 measuredAt: measuredAt,
                 weightKg: weightKg,
                 note: note,
+                bodyFatPct: bodyFatPct,
+                musclePct: musclePct,
+                waterPct: waterPct,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

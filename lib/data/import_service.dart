@@ -53,7 +53,7 @@ class ImportResult {
 class ImportService {
   const ImportService();
 
-  static const supportedSchemaVersion = 1;
+  static const supportedSchemaVersion = 2;
 
   /// Parses [jsonString] into an [ImportResult]. Returns a failure (never
   /// throws) for malformed JSON, wrong shape, unsupported schema, or invalid
@@ -102,10 +102,21 @@ class ImportService {
         return ImportResult.failure('An entry has an invalid weight.');
       }
       final note = raw['note'] as String?;
+
+      // Optional body-composition percentages (absent in v1 files). Reject
+      // out-of-range values rather than silently storing nonsense.
+      final pct = _parsePercents(raw);
+      if (pct == null) {
+        return ImportResult.failure('An entry has an invalid percentage.');
+      }
+
       byTimestamp[at] = WeightEntriesCompanion.insert(
         measuredAt: at,
         weightKg: kg,
         note: Value(note),
+        bodyFatPct: Value(pct.bodyFat),
+        musclePct: Value(pct.muscle),
+        waterPct: Value(pct.water),
       );
     }
 
@@ -123,6 +134,25 @@ class ImportService {
       weightUnit: settings is Map ? settings['weight_unit'] as String? : null,
       lengthUnit: settings is Map ? settings['length_unit'] as String? : null,
       theme: settings is Map ? settings['theme'] as String? : null,
+    );
+  }
+
+  /// Parses the optional body-composition percentages from an entry map.
+  /// Returns a record of (possibly null) values, or null if any present value
+  /// is not a number in 0–100. Absent fields are valid and yield null.
+  ({double? bodyFat, double? muscle, double? water})? _parsePercents(
+    Map<String, dynamic> raw,
+  ) {
+    for (final key in const ['body_fat_pct', 'muscle_pct', 'water_pct']) {
+      final v = raw[key];
+      if (v == null) continue;
+      if (v is! num || v < 0 || v > 100) return null;
+    }
+    double? read(String key) => (raw[key] as num?)?.toDouble();
+    return (
+      bodyFat: read('body_fat_pct'),
+      muscle: read('muscle_pct'),
+      water: read('water_pct'),
     );
   }
 }

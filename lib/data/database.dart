@@ -27,7 +27,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +40,13 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.deleteTable(weightEntries.actualTableName);
         await m.createTable(weightEntries);
+      }
+      // v2 → v3: add nullable body-composition columns (additive — existing
+      // rows keep their data; new columns default to null).
+      if (from < 3) {
+        await m.addColumn(weightEntries, weightEntries.bodyFatPct);
+        await m.addColumn(weightEntries, weightEntries.musclePct);
+        await m.addColumn(weightEntries, weightEntries.waterPct);
       }
     },
   );
