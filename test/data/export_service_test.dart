@@ -82,7 +82,11 @@ void main() {
     test('has the header and a computed BMI column', () {
       final csv = service.toCsv(profile: profile, entries: entries);
       final lines = const LineSplitter().convert(csv);
-      expect(lines.first, 'measured_at,date,weight_kg,bmi,note');
+      expect(
+        lines.first,
+        'measured_at,date,weight_kg,bmi,'
+        'body_fat_pct,muscle_pct,water_pct,note',
+      );
       // 80.4 kg @ 178 cm -> 25.4
       expect(lines[1], contains('2026-05-28,80.4,25.4,'));
     });

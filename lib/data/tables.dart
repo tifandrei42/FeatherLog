@@ -42,6 +42,12 @@ class WeightEntries extends Table {
 
   TextColumn get note => text().nullable()();
 
+  /// Optional body-composition percentages (0–100), nullable so existing rows
+  /// and weight-only entries stay valid. Free in FeatherLog (DATA_MODEL.md §8).
+  RealColumn get bodyFatPct => real().nullable()();
+  RealColumn get musclePct => real().nullable()();
+  RealColumn get waterPct => real().nullable()();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }

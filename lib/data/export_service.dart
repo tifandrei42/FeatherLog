@@ -10,8 +10,9 @@ import 'database.dart';
 class ExportService {
   const ExportService();
 
-  /// Export schema version (bumped if the export shape changes).
-  static const schemaVersion = 1;
+  /// Export schema version (bumped when the export shape changes). v2 adds the
+  /// optional body-composition fields; v1 files still import.
+  static const schemaVersion = 2;
 
   /// ISO date (yyyy-MM-dd) of a timestamp, for the CSV convenience column.
   static String _isoDate(DateTime t) {
@@ -48,6 +49,9 @@ class ExportService {
             'measured_at': e.measuredAt.toUtc().toIso8601String(),
             'weight_kg': e.weightKg,
             'note': e.note,
+            'body_fat_pct': e.bodyFatPct,
+            'muscle_pct': e.musclePct,
+            'water_pct': e.waterPct,
           },
       ],
     };
@@ -56,14 +60,17 @@ class ExportService {
 
   /// Spreadsheet-friendly CSV. Includes a derived BMI column when height is
   /// known (computed at export time; never stored). Columns:
-  /// measured_at, date, weight_kg, bmi, note.
+  /// measured_at, date, weight_kg, bmi, body_fat_pct, muscle_pct, water_pct, note.
   String toCsv({
     required Profile? profile,
     required List<WeightEntry> entries,
   }) {
     final height = profile?.heightCm;
     final buffer = StringBuffer()
-      ..writeln('measured_at,date,weight_kg,bmi,note');
+      ..writeln(
+        'measured_at,date,weight_kg,bmi,'
+        'body_fat_pct,muscle_pct,water_pct,note',
+      );
     for (final e in entries) {
       final bmi = (height != null && height > 0)
           ? calculateBmi(
@@ -76,6 +83,9 @@ class ExportService {
         _isoDate(e.measuredAt),
         e.weightKg.toString(),
         bmi,
+        e.bodyFatPct?.toString() ?? '',
+        e.musclePct?.toString() ?? '',
+        e.waterPct?.toString() ?? '',
         _csvField(e.note ?? ''),
       ];
       buffer.writeln(row.join(','));

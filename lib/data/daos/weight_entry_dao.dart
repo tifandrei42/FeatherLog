@@ -42,17 +42,24 @@ class WeightEntryDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Inserts a new reading. Returns the new row id. Never overwrites an
-  /// existing reading — each call adds a distinct measurement.
+  /// existing reading — each call adds a distinct measurement. Body-composition
+  /// percentages are optional.
   Future<int> addReading({
     required DateTime measuredAt,
     required double weightKg,
     String? note,
+    double? bodyFatPct,
+    double? musclePct,
+    double? waterPct,
   }) {
     return into(weightEntries).insert(
       WeightEntriesCompanion.insert(
         measuredAt: measuredAt,
         weightKg: weightKg,
         note: Value(note),
+        bodyFatPct: Value(bodyFatPct),
+        musclePct: Value(musclePct),
+        waterPct: Value(waterPct),
       ),
     );
   }
@@ -63,6 +70,9 @@ class WeightEntryDao extends DatabaseAccessor<AppDatabase>
     required DateTime measuredAt,
     required double weightKg,
     String? note,
+    double? bodyFatPct,
+    double? musclePct,
+    double? waterPct,
   }) {
     return update(weightEntries).replace(
       WeightEntriesCompanion(
@@ -70,6 +80,9 @@ class WeightEntryDao extends DatabaseAccessor<AppDatabase>
         measuredAt: Value(measuredAt),
         weightKg: Value(weightKg),
         note: Value(note),
+        bodyFatPct: Value(bodyFatPct),
+        musclePct: Value(musclePct),
+        waterPct: Value(waterPct),
         updatedAt: Value(DateTime.now()),
       ),
     );
