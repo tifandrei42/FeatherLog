@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -53,6 +53,10 @@ class AppDatabase extends _$AppDatabase {
       // touched).
       if (from < 4) {
         await m.createTable(bodyMeasurements);
+      }
+      // v4 → v5: add the selected-palette preference (additive, defaulted).
+      if (from < 5) {
+        await m.addColumn(settings, settings.palette);
       }
     },
   );

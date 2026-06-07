@@ -7,6 +7,7 @@ import '../data/database.dart';
 import '../domain/units.dart';
 import '../providers/database_provider.dart';
 import '../providers/data_providers.dart';
+import 'widgets/shiny_button.dart';
 
 /// Shows the add/edit weight entry modal. Pass [existing] to edit a row.
 Future<void> showAddEntrySheet(BuildContext context, {WeightEntry? existing}) {
@@ -37,6 +38,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _weightController;
   late final TextEditingController _noteController;
+  late final TextEditingController _bodyFatController;
+  late final TextEditingController _muscleController;
+  late final TextEditingController _waterController;
   late DateTime _date;
 
   bool get _isEditing => widget.existing != null;
@@ -57,12 +61,24 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
           : _formatNumber(weightFromKg(existingKg, _unit)),
     );
     _noteController = TextEditingController(text: widget.existing?.note ?? '');
+    _bodyFatController = TextEditingController(
+      text: _pctText(widget.existing?.bodyFatPct),
+    );
+    _muscleController = TextEditingController(
+      text: _pctText(widget.existing?.musclePct),
+    );
+    _waterController = TextEditingController(
+      text: _pctText(widget.existing?.waterPct),
+    );
   }
 
   @override
   void dispose() {
     _weightController.dispose();
     _noteController.dispose();
+    _bodyFatController.dispose();
+    _muscleController.dispose();
+    _waterController.dispose();
     super.dispose();
   }
 
@@ -73,6 +89,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
   static String _formatNumber(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
+  /// Display text for an optional stored percentage (blank when unset).
+  static String _pctText(double? v) => v == null ? '' : _formatNumber(v);
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -91,6 +110,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     final value = double.parse(_weightController.text.replaceAll(',', '.'));
     final weightKg = weightToKg(value, _unit);
     final note = _noteController.text.trim();
+    final bodyFat = _parsePct(_bodyFatController);
+    final muscle = _parsePct(_muscleController);
+    final water = _parsePct(_waterController);
     final dao = ref.read(databaseProvider).weightEntryDao;
     final existing = widget.existing;
 
@@ -110,6 +132,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         measuredAt: measuredAt,
         weightKg: weightKg,
         note: note.isEmpty ? null : note,
+        bodyFatPct: bodyFat,
+        musclePct: muscle,
+        waterPct: water,
       );
     } else {
       // Edit: keep the original time-of-day, apply the (possibly changed) date.
@@ -127,6 +152,9 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
         measuredAt: measuredAt,
         weightKg: weightKg,
         note: note.isEmpty ? null : note,
+        bodyFatPct: bodyFat,
+        musclePct: muscle,
+        waterPct: water,
       );
     }
     if (mounted) Navigator.of(context).pop();
@@ -148,6 +176,23 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     // Sanity bound in the displayed unit (about 1000 lb / 454 kg).
     final kg = weightToKg(value, _unit);
     if (kg > 454) return 'That seems too high';
+    return null;
+  }
+
+  /// Parses an optional 0–100 percentage field; blank → null.
+  double? _parsePct(TextEditingController c) {
+    final text = c.text.trim().replaceAll(',', '.');
+    if (text.isEmpty) return null;
+    return double.tryParse(text);
+  }
+
+  /// Validates an optional percentage: blank allowed, otherwise 0–100.
+  static String? _validatePct(String? raw) {
+    final text = raw?.trim().replaceAll(',', '.') ?? '';
+    if (text.isEmpty) return null;
+    final v = double.tryParse(text);
+    if (v == null) return 'Not a number';
+    if (v < 0 || v > 100) return '0–100%';
     return null;
   }
 
@@ -201,6 +246,13 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               ),
               textCapitalization: TextCapitalization.sentences,
             ),
+            const SizedBox(height: 8),
+            _CompositionFields(
+              bodyFat: _bodyFatController,
+              muscle: _muscleController,
+              water: _waterController,
+              validator: _validatePct,
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
@@ -214,7 +266,7 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
                     ),
                   ),
                 const Spacer(),
-                FilledButton(onPressed: _save, child: const Text('Save')),
+                ShinyButton(label: 'Save', icon: Icons.check, onPressed: _save),
               ],
             ),
           ],
@@ -222,4 +274,60 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
       ),
     );
   }
+}
+
+/// An optional, collapsible group of body-composition percentage fields shown
+/// inside the log sheet. These map to the nullable composition columns on the
+/// weigh-in row, so they're captured alongside weight (as a smart scale does).
+class _CompositionFields extends StatelessWidget {
+  const _CompositionFields({
+    required this.bodyFat,
+    required this.muscle,
+    required this.water,
+    required this.validator,
+  });
+
+  final TextEditingController bodyFat;
+  final TextEditingController muscle;
+  final TextEditingController water;
+  final FormFieldValidator<String> validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      // Hide the ExpansionTile's default top/bottom dividers for a cleaner sheet.
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(top: 4, bottom: 8),
+        title: const Text('Body composition (optional)'),
+        children: [
+          Row(
+            children: [
+              Expanded(child: _field(bodyFat, 'Body fat')),
+              const SizedBox(width: 12),
+              Expanded(child: _field(muscle, 'Muscle')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _field(water, 'Water'),
+        ],
+      ),
+    );
+  }
+
+  Widget _field(TextEditingController controller, String label) =>
+      TextFormField(
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+        ],
+        decoration: InputDecoration(
+          labelText: label,
+          suffixText: '%',
+          border: const OutlineInputBorder(),
+        ),
+        validator: validator,
+      );
 }

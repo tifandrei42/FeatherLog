@@ -1055,6 +1055,18 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _paletteMeta = const VerificationMeta(
+    'palette',
+  );
+  @override
+  late final GeneratedColumn<String> palette = GeneratedColumn<String>(
+    'palette',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('meadow'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1063,6 +1075,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     theme,
     showMovingAvg,
     showGoalLine,
+    palette,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1115,6 +1128,12 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         ),
       );
     }
+    if (data.containsKey('palette')) {
+      context.handle(
+        _paletteMeta,
+        palette.isAcceptableOrUnknown(data['palette']!, _paletteMeta),
+      );
+    }
     return context;
   }
 
@@ -1148,6 +1167,10 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.bool,
         data['${effectivePrefix}show_goal_line'],
       )!,
+      palette: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}palette'],
+      )!,
     );
   }
 
@@ -1170,6 +1193,9 @@ class Setting extends DataClass implements Insertable<Setting> {
   final String theme;
   final bool showMovingAvg;
   final bool showGoalLine;
+
+  /// Selected accent palette id (see `featherPalettes`). Display-only preference.
+  final String palette;
   const Setting({
     required this.id,
     required this.weightUnit,
@@ -1177,6 +1203,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.theme,
     required this.showMovingAvg,
     required this.showGoalLine,
+    required this.palette,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1187,6 +1214,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['theme'] = Variable<String>(theme);
     map['show_moving_avg'] = Variable<bool>(showMovingAvg);
     map['show_goal_line'] = Variable<bool>(showGoalLine);
+    map['palette'] = Variable<String>(palette);
     return map;
   }
 
@@ -1198,6 +1226,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       theme: Value(theme),
       showMovingAvg: Value(showMovingAvg),
       showGoalLine: Value(showGoalLine),
+      palette: Value(palette),
     );
   }
 
@@ -1213,6 +1242,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       theme: serializer.fromJson<String>(json['theme']),
       showMovingAvg: serializer.fromJson<bool>(json['showMovingAvg']),
       showGoalLine: serializer.fromJson<bool>(json['showGoalLine']),
+      palette: serializer.fromJson<String>(json['palette']),
     );
   }
   @override
@@ -1225,6 +1255,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       'theme': serializer.toJson<String>(theme),
       'showMovingAvg': serializer.toJson<bool>(showMovingAvg),
       'showGoalLine': serializer.toJson<bool>(showGoalLine),
+      'palette': serializer.toJson<String>(palette),
     };
   }
 
@@ -1235,6 +1266,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     String? theme,
     bool? showMovingAvg,
     bool? showGoalLine,
+    String? palette,
   }) => Setting(
     id: id ?? this.id,
     weightUnit: weightUnit ?? this.weightUnit,
@@ -1242,6 +1274,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     theme: theme ?? this.theme,
     showMovingAvg: showMovingAvg ?? this.showMovingAvg,
     showGoalLine: showGoalLine ?? this.showGoalLine,
+    palette: palette ?? this.palette,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -1259,6 +1292,7 @@ class Setting extends DataClass implements Insertable<Setting> {
       showGoalLine: data.showGoalLine.present
           ? data.showGoalLine.value
           : this.showGoalLine,
+      palette: data.palette.present ? data.palette.value : this.palette,
     );
   }
 
@@ -1270,7 +1304,8 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('lengthUnit: $lengthUnit, ')
           ..write('theme: $theme, ')
           ..write('showMovingAvg: $showMovingAvg, ')
-          ..write('showGoalLine: $showGoalLine')
+          ..write('showGoalLine: $showGoalLine, ')
+          ..write('palette: $palette')
           ..write(')'))
         .toString();
   }
@@ -1283,6 +1318,7 @@ class Setting extends DataClass implements Insertable<Setting> {
     theme,
     showMovingAvg,
     showGoalLine,
+    palette,
   );
   @override
   bool operator ==(Object other) =>
@@ -1293,7 +1329,8 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.lengthUnit == this.lengthUnit &&
           other.theme == this.theme &&
           other.showMovingAvg == this.showMovingAvg &&
-          other.showGoalLine == this.showGoalLine);
+          other.showGoalLine == this.showGoalLine &&
+          other.palette == this.palette);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
@@ -1303,6 +1340,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<String> theme;
   final Value<bool> showMovingAvg;
   final Value<bool> showGoalLine;
+  final Value<String> palette;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.weightUnit = const Value.absent(),
@@ -1310,6 +1348,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.theme = const Value.absent(),
     this.showMovingAvg = const Value.absent(),
     this.showGoalLine = const Value.absent(),
+    this.palette = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -1318,6 +1357,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.theme = const Value.absent(),
     this.showMovingAvg = const Value.absent(),
     this.showGoalLine = const Value.absent(),
+    this.palette = const Value.absent(),
   });
   static Insertable<Setting> custom({
     Expression<int>? id,
@@ -1326,6 +1366,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<String>? theme,
     Expression<bool>? showMovingAvg,
     Expression<bool>? showGoalLine,
+    Expression<String>? palette,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1334,6 +1375,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (theme != null) 'theme': theme,
       if (showMovingAvg != null) 'show_moving_avg': showMovingAvg,
       if (showGoalLine != null) 'show_goal_line': showGoalLine,
+      if (palette != null) 'palette': palette,
     });
   }
 
@@ -1344,6 +1386,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<String>? theme,
     Value<bool>? showMovingAvg,
     Value<bool>? showGoalLine,
+    Value<String>? palette,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
@@ -1352,6 +1395,7 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       theme: theme ?? this.theme,
       showMovingAvg: showMovingAvg ?? this.showMovingAvg,
       showGoalLine: showGoalLine ?? this.showGoalLine,
+      palette: palette ?? this.palette,
     );
   }
 
@@ -1376,6 +1420,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (showGoalLine.present) {
       map['show_goal_line'] = Variable<bool>(showGoalLine.value);
     }
+    if (palette.present) {
+      map['palette'] = Variable<String>(palette.value);
+    }
     return map;
   }
 
@@ -1387,7 +1434,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('lengthUnit: $lengthUnit, ')
           ..write('theme: $theme, ')
           ..write('showMovingAvg: $showMovingAvg, ')
-          ..write('showGoalLine: $showGoalLine')
+          ..write('showGoalLine: $showGoalLine, ')
+          ..write('palette: $palette')
           ..write(')'))
         .toString();
   }
@@ -2359,6 +2407,7 @@ typedef $$SettingsTableCreateCompanionBuilder =
       Value<String> theme,
       Value<bool> showMovingAvg,
       Value<bool> showGoalLine,
+      Value<String> palette,
     });
 typedef $$SettingsTableUpdateCompanionBuilder =
     SettingsCompanion Function({
@@ -2368,6 +2417,7 @@ typedef $$SettingsTableUpdateCompanionBuilder =
       Value<String> theme,
       Value<bool> showMovingAvg,
       Value<bool> showGoalLine,
+      Value<String> palette,
     });
 
 class $$SettingsTableFilterComposer
@@ -2406,6 +2456,11 @@ class $$SettingsTableFilterComposer
 
   ColumnFilters<bool> get showGoalLine => $composableBuilder(
     column: $table.showGoalLine,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get palette => $composableBuilder(
+    column: $table.palette,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2448,6 +2503,11 @@ class $$SettingsTableOrderingComposer
     column: $table.showGoalLine,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get palette => $composableBuilder(
+    column: $table.palette,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -2484,6 +2544,9 @@ class $$SettingsTableAnnotationComposer
     column: $table.showGoalLine,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get palette =>
+      $composableBuilder(column: $table.palette, builder: (column) => column);
 }
 
 class $$SettingsTableTableManager
@@ -2520,6 +2583,7 @@ class $$SettingsTableTableManager
                 Value<String> theme = const Value.absent(),
                 Value<bool> showMovingAvg = const Value.absent(),
                 Value<bool> showGoalLine = const Value.absent(),
+                Value<String> palette = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 weightUnit: weightUnit,
@@ -2527,6 +2591,7 @@ class $$SettingsTableTableManager
                 theme: theme,
                 showMovingAvg: showMovingAvg,
                 showGoalLine: showGoalLine,
+                palette: palette,
               ),
           createCompanionCallback:
               ({
@@ -2536,6 +2601,7 @@ class $$SettingsTableTableManager
                 Value<String> theme = const Value.absent(),
                 Value<bool> showMovingAvg = const Value.absent(),
                 Value<bool> showGoalLine = const Value.absent(),
+                Value<String> palette = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 weightUnit: weightUnit,
@@ -2543,6 +2609,7 @@ class $$SettingsTableTableManager
                 theme: theme,
                 showMovingAvg: showMovingAvg,
                 showGoalLine: showGoalLine,
+                palette: palette,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

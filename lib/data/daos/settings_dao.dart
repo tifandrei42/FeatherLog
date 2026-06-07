@@ -46,4 +46,7 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> setShowGoalLine(bool value) =>
       _patch(SettingsCompanion(showGoalLine: Value(value)));
+
+  Future<void> updatePalette(String id) =>
+      _patch(SettingsCompanion(palette: Value(id)));
 }

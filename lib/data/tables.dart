@@ -91,4 +91,7 @@ class Settings extends Table {
 
   BoolColumn get showMovingAvg => boolean().withDefault(const Constant(true))();
   BoolColumn get showGoalLine => boolean().withDefault(const Constant(true))();
+
+  /// Selected accent palette id (see `featherPalettes`). Display-only preference.
+  TextColumn get palette => text().withDefault(const Constant('meadow'))();
 }
