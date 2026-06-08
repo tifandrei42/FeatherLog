@@ -49,4 +49,10 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> updatePalette(String id) =>
       _patch(SettingsCompanion(palette: Value(id)));
+
+  Future<void> setCheckUpdates(bool value) =>
+      _patch(SettingsCompanion(checkUpdates: Value(value)));
+
+  Future<void> setDismissedUpdateVersion(String? version) =>
+      _patch(SettingsCompanion(dismissedUpdateVersion: Value(version)));
 }

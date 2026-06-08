@@ -94,4 +94,12 @@ class Settings extends Table {
 
   /// Selected accent palette id (see `featherPalettes`). Display-only preference.
   TextColumn get palette => text().withDefault(const Constant('meadow'))();
+
+  /// Opt-in: check GitHub for a newer release on launch. Off by default so the
+  /// app stays zero-network unless the user asks for it (PRIVACY.md).
+  BoolColumn get checkUpdates => boolean().withDefault(const Constant(false))();
+
+  /// The release tag the user dismissed from the update banner (e.g. 'v1.2.0'),
+  /// so a declined update isn't shown again. Null until something is dismissed.
+  TextColumn get dismissedUpdateVersion => text().nullable()();
 }

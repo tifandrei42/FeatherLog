@@ -4,7 +4,7 @@ title: FeatherLog Privacy Policy
 
 # Privacy Policy — FeatherLog
 
-_Last updated: 2026-06-06_
+_Last updated: 2026-06-08_
 
 FeatherLog is a free, open-source, local-first weight & BMI tracker. Your
 privacy is the point of the app, not an afterthought.
@@ -23,14 +23,29 @@ FeatherLog stores the data **you enter**, locally on your device only:
 - App preferences (units, theme, chart options)
 
 This data lives in a private database on your device. It is never sent to us or
-to any third party, because **FeatherLog has no backend server and requests no
-network/internet permission for app data.**
+to any third party, because **FeatherLog has no backend server.** The app never
+transmits your weight, profile, or any other personal data over the network.
 
 ## What we do *not* do
 
 - No accounts, sign-up, or login.
 - No analytics, telemetry, tracking, or advertising SDKs.
 - No selling or sharing of data — there is no data leaving your device to share.
+
+## Checking for updates (optional, off by default)
+
+FeatherLog can let you know when a newer version has been released. This feature
+is **turned off by default** — the app makes **no network connections** unless
+you explicitly enable it under **Settings → Updates → "Check for updates"** (or
+tap **"Check now"**).
+
+When enabled, the app makes a **single request to GitHub's public API**
+(`api.github.com`) to read the version number of the latest release. **No
+personal data is sent** — it's the same anonymous request your browser makes to
+view the releases page. GitHub may log the request (e.g. your IP address) under
+[GitHub's Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
+The download/install of an update happens in your browser or app store of choice,
+not inside FeatherLog. You can turn this off at any time.
 
 ## Backups (your choice, your accounts)
 
