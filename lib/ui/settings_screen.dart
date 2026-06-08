@@ -7,14 +7,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/export_service.dart';
 import '../data/import_service.dart';
 import '../data/pdf_report_service.dart';
+import '../data/update_service.dart';
 import '../domain/daily.dart' show ChartRange;
 import '../domain/units.dart';
+import '../domain/version_compare.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
+import '../providers/update_provider.dart';
 import 'theme/tokens.dart';
 
 /// Grouped, calm settings list (UI_DESIGN.md §8.5, US-13.x): units, body
@@ -27,6 +31,7 @@ class SettingsScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider).value;
     final profile = ref.watch(profileProvider).value;
     final dao = ref.read(databaseProvider);
+    final version = ref.watch(appVersionProvider).value ?? '';
 
     final weightUnit = settings?.weightUnit == 'lb'
         ? WeightUnit.lb
@@ -158,12 +163,35 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _import(context, ref),
           ),
 
+          _header(context, 'Updates'),
+          SwitchListTile(
+            secondary: const Icon(Icons.system_update_outlined),
+            title: const Text('Check for updates'),
+            subtitle: const Text(
+              'Ask GitHub for the latest version on launch. One request, no '
+              'personal data — off by default.',
+            ),
+            value: settings?.checkUpdates ?? false,
+            onChanged: (v) => dao.settingsDao.setCheckUpdates(v),
+          ),
+          ListTile(
+            leading: const Icon(Icons.search),
+            title: const Text('Check now'),
+            onTap: () => _checkForUpdate(context, ref),
+          ),
+
           _header(context, 'About'),
-          const ListTile(
-            title: Text('FeatherLog'),
-            subtitle: Text(
+          ListTile(
+            title: const Text('FeatherLog'),
+            subtitle: const Text(
               'A free, local-first weight & BMI tracker. Your data stays on '
               'your device — no accounts, no ads, no trackers.',
+            ),
+            trailing: Text(
+              version.isEmpty ? '' : 'v$version',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -278,6 +306,44 @@ class SettingsScreen extends ConsumerWidget {
     } catch (e) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Export failed. Please try again.')),
+      );
+    }
+  }
+
+  /// Manual update check (works regardless of the auto-check toggle, since the
+  /// user explicitly asked). Shows the result as a snackbar.
+  Future<void> _checkForUpdate(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Checking for updates…')),
+    );
+    final version = await ref.read(appVersionProvider.future);
+    final info = await const UpdateService().fetchLatest();
+    if (!context.mounted) return;
+    messenger.hideCurrentSnackBar();
+
+    if (info == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("Couldn't check for updates right now")),
+      );
+      return;
+    }
+    if (version.isNotEmpty && isNewer(info.version, version)) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('${info.version} is available'),
+          action: SnackBarAction(
+            label: 'Update',
+            onPressed: () => launchUrl(
+              Uri.parse(info.url),
+              mode: LaunchMode.externalApplication,
+            ),
+          ),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        const SnackBar(content: Text("You're on the latest version")),
       );
     }
   }

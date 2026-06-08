@@ -28,7 +28,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -57,6 +57,12 @@ class AppDatabase extends _$AppDatabase {
       // v4 → v5: add the selected-palette preference (additive, defaulted).
       if (from < 5) {
         await m.addColumn(settings, settings.palette);
+      }
+      // v5 → v6: add the opt-in update-check preference + the dismissed-version
+      // marker (additive; both default to off/null).
+      if (from < 6) {
+        await m.addColumn(settings, settings.checkUpdates);
+        await m.addColumn(settings, settings.dismissedUpdateVersion);
       }
     },
   );

@@ -1067,6 +1067,32 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     requiredDuringInsert: false,
     defaultValue: const Constant('meadow'),
   );
+  static const VerificationMeta _checkUpdatesMeta = const VerificationMeta(
+    'checkUpdates',
+  );
+  @override
+  late final GeneratedColumn<bool> checkUpdates = GeneratedColumn<bool>(
+    'check_updates',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("check_updates" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _dismissedUpdateVersionMeta =
+      const VerificationMeta('dismissedUpdateVersion');
+  @override
+  late final GeneratedColumn<String> dismissedUpdateVersion =
+      GeneratedColumn<String>(
+        'dismissed_update_version',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1076,6 +1102,8 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     showMovingAvg,
     showGoalLine,
     palette,
+    checkUpdates,
+    dismissedUpdateVersion,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1134,6 +1162,24 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         palette.isAcceptableOrUnknown(data['palette']!, _paletteMeta),
       );
     }
+    if (data.containsKey('check_updates')) {
+      context.handle(
+        _checkUpdatesMeta,
+        checkUpdates.isAcceptableOrUnknown(
+          data['check_updates']!,
+          _checkUpdatesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('dismissed_update_version')) {
+      context.handle(
+        _dismissedUpdateVersionMeta,
+        dismissedUpdateVersion.isAcceptableOrUnknown(
+          data['dismissed_update_version']!,
+          _dismissedUpdateVersionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1171,6 +1217,14 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.string,
         data['${effectivePrefix}palette'],
       )!,
+      checkUpdates: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}check_updates'],
+      )!,
+      dismissedUpdateVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dismissed_update_version'],
+      ),
     );
   }
 
@@ -1196,6 +1250,14 @@ class Setting extends DataClass implements Insertable<Setting> {
 
   /// Selected accent palette id (see `featherPalettes`). Display-only preference.
   final String palette;
+
+  /// Opt-in: check GitHub for a newer release on launch. Off by default so the
+  /// app stays zero-network unless the user asks for it (PRIVACY.md).
+  final bool checkUpdates;
+
+  /// The release tag the user dismissed from the update banner (e.g. 'v1.2.0'),
+  /// so a declined update isn't shown again. Null until something is dismissed.
+  final String? dismissedUpdateVersion;
   const Setting({
     required this.id,
     required this.weightUnit,
@@ -1204,6 +1266,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.showMovingAvg,
     required this.showGoalLine,
     required this.palette,
+    required this.checkUpdates,
+    this.dismissedUpdateVersion,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1215,6 +1279,12 @@ class Setting extends DataClass implements Insertable<Setting> {
     map['show_moving_avg'] = Variable<bool>(showMovingAvg);
     map['show_goal_line'] = Variable<bool>(showGoalLine);
     map['palette'] = Variable<String>(palette);
+    map['check_updates'] = Variable<bool>(checkUpdates);
+    if (!nullToAbsent || dismissedUpdateVersion != null) {
+      map['dismissed_update_version'] = Variable<String>(
+        dismissedUpdateVersion,
+      );
+    }
     return map;
   }
 
@@ -1227,6 +1297,10 @@ class Setting extends DataClass implements Insertable<Setting> {
       showMovingAvg: Value(showMovingAvg),
       showGoalLine: Value(showGoalLine),
       palette: Value(palette),
+      checkUpdates: Value(checkUpdates),
+      dismissedUpdateVersion: dismissedUpdateVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dismissedUpdateVersion),
     );
   }
 
@@ -1243,6 +1317,10 @@ class Setting extends DataClass implements Insertable<Setting> {
       showMovingAvg: serializer.fromJson<bool>(json['showMovingAvg']),
       showGoalLine: serializer.fromJson<bool>(json['showGoalLine']),
       palette: serializer.fromJson<String>(json['palette']),
+      checkUpdates: serializer.fromJson<bool>(json['checkUpdates']),
+      dismissedUpdateVersion: serializer.fromJson<String?>(
+        json['dismissedUpdateVersion'],
+      ),
     );
   }
   @override
@@ -1256,6 +1334,10 @@ class Setting extends DataClass implements Insertable<Setting> {
       'showMovingAvg': serializer.toJson<bool>(showMovingAvg),
       'showGoalLine': serializer.toJson<bool>(showGoalLine),
       'palette': serializer.toJson<String>(palette),
+      'checkUpdates': serializer.toJson<bool>(checkUpdates),
+      'dismissedUpdateVersion': serializer.toJson<String?>(
+        dismissedUpdateVersion,
+      ),
     };
   }
 
@@ -1267,6 +1349,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     bool? showMovingAvg,
     bool? showGoalLine,
     String? palette,
+    bool? checkUpdates,
+    Value<String?> dismissedUpdateVersion = const Value.absent(),
   }) => Setting(
     id: id ?? this.id,
     weightUnit: weightUnit ?? this.weightUnit,
@@ -1275,6 +1359,10 @@ class Setting extends DataClass implements Insertable<Setting> {
     showMovingAvg: showMovingAvg ?? this.showMovingAvg,
     showGoalLine: showGoalLine ?? this.showGoalLine,
     palette: palette ?? this.palette,
+    checkUpdates: checkUpdates ?? this.checkUpdates,
+    dismissedUpdateVersion: dismissedUpdateVersion.present
+        ? dismissedUpdateVersion.value
+        : this.dismissedUpdateVersion,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -1293,6 +1381,12 @@ class Setting extends DataClass implements Insertable<Setting> {
           ? data.showGoalLine.value
           : this.showGoalLine,
       palette: data.palette.present ? data.palette.value : this.palette,
+      checkUpdates: data.checkUpdates.present
+          ? data.checkUpdates.value
+          : this.checkUpdates,
+      dismissedUpdateVersion: data.dismissedUpdateVersion.present
+          ? data.dismissedUpdateVersion.value
+          : this.dismissedUpdateVersion,
     );
   }
 
@@ -1305,7 +1399,9 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('theme: $theme, ')
           ..write('showMovingAvg: $showMovingAvg, ')
           ..write('showGoalLine: $showGoalLine, ')
-          ..write('palette: $palette')
+          ..write('palette: $palette, ')
+          ..write('checkUpdates: $checkUpdates, ')
+          ..write('dismissedUpdateVersion: $dismissedUpdateVersion')
           ..write(')'))
         .toString();
   }
@@ -1319,6 +1415,8 @@ class Setting extends DataClass implements Insertable<Setting> {
     showMovingAvg,
     showGoalLine,
     palette,
+    checkUpdates,
+    dismissedUpdateVersion,
   );
   @override
   bool operator ==(Object other) =>
@@ -1330,7 +1428,9 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.theme == this.theme &&
           other.showMovingAvg == this.showMovingAvg &&
           other.showGoalLine == this.showGoalLine &&
-          other.palette == this.palette);
+          other.palette == this.palette &&
+          other.checkUpdates == this.checkUpdates &&
+          other.dismissedUpdateVersion == this.dismissedUpdateVersion);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
@@ -1341,6 +1441,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<bool> showMovingAvg;
   final Value<bool> showGoalLine;
   final Value<String> palette;
+  final Value<bool> checkUpdates;
+  final Value<String?> dismissedUpdateVersion;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.weightUnit = const Value.absent(),
@@ -1349,6 +1451,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.showMovingAvg = const Value.absent(),
     this.showGoalLine = const Value.absent(),
     this.palette = const Value.absent(),
+    this.checkUpdates = const Value.absent(),
+    this.dismissedUpdateVersion = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -1358,6 +1462,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.showMovingAvg = const Value.absent(),
     this.showGoalLine = const Value.absent(),
     this.palette = const Value.absent(),
+    this.checkUpdates = const Value.absent(),
+    this.dismissedUpdateVersion = const Value.absent(),
   });
   static Insertable<Setting> custom({
     Expression<int>? id,
@@ -1367,6 +1473,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<bool>? showMovingAvg,
     Expression<bool>? showGoalLine,
     Expression<String>? palette,
+    Expression<bool>? checkUpdates,
+    Expression<String>? dismissedUpdateVersion,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1376,6 +1484,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (showMovingAvg != null) 'show_moving_avg': showMovingAvg,
       if (showGoalLine != null) 'show_goal_line': showGoalLine,
       if (palette != null) 'palette': palette,
+      if (checkUpdates != null) 'check_updates': checkUpdates,
+      if (dismissedUpdateVersion != null)
+        'dismissed_update_version': dismissedUpdateVersion,
     });
   }
 
@@ -1387,6 +1498,8 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<bool>? showMovingAvg,
     Value<bool>? showGoalLine,
     Value<String>? palette,
+    Value<bool>? checkUpdates,
+    Value<String?>? dismissedUpdateVersion,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
@@ -1396,6 +1509,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       showMovingAvg: showMovingAvg ?? this.showMovingAvg,
       showGoalLine: showGoalLine ?? this.showGoalLine,
       palette: palette ?? this.palette,
+      checkUpdates: checkUpdates ?? this.checkUpdates,
+      dismissedUpdateVersion:
+          dismissedUpdateVersion ?? this.dismissedUpdateVersion,
     );
   }
 
@@ -1423,6 +1539,14 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     if (palette.present) {
       map['palette'] = Variable<String>(palette.value);
     }
+    if (checkUpdates.present) {
+      map['check_updates'] = Variable<bool>(checkUpdates.value);
+    }
+    if (dismissedUpdateVersion.present) {
+      map['dismissed_update_version'] = Variable<String>(
+        dismissedUpdateVersion.value,
+      );
+    }
     return map;
   }
 
@@ -1435,7 +1559,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('theme: $theme, ')
           ..write('showMovingAvg: $showMovingAvg, ')
           ..write('showGoalLine: $showGoalLine, ')
-          ..write('palette: $palette')
+          ..write('palette: $palette, ')
+          ..write('checkUpdates: $checkUpdates, ')
+          ..write('dismissedUpdateVersion: $dismissedUpdateVersion')
           ..write(')'))
         .toString();
   }
@@ -2408,6 +2534,8 @@ typedef $$SettingsTableCreateCompanionBuilder =
       Value<bool> showMovingAvg,
       Value<bool> showGoalLine,
       Value<String> palette,
+      Value<bool> checkUpdates,
+      Value<String?> dismissedUpdateVersion,
     });
 typedef $$SettingsTableUpdateCompanionBuilder =
     SettingsCompanion Function({
@@ -2418,6 +2546,8 @@ typedef $$SettingsTableUpdateCompanionBuilder =
       Value<bool> showMovingAvg,
       Value<bool> showGoalLine,
       Value<String> palette,
+      Value<bool> checkUpdates,
+      Value<String?> dismissedUpdateVersion,
     });
 
 class $$SettingsTableFilterComposer
@@ -2461,6 +2591,16 @@ class $$SettingsTableFilterComposer
 
   ColumnFilters<String> get palette => $composableBuilder(
     column: $table.palette,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get checkUpdates => $composableBuilder(
+    column: $table.checkUpdates,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dismissedUpdateVersion => $composableBuilder(
+    column: $table.dismissedUpdateVersion,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2508,6 +2648,16 @@ class $$SettingsTableOrderingComposer
     column: $table.palette,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get checkUpdates => $composableBuilder(
+    column: $table.checkUpdates,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dismissedUpdateVersion => $composableBuilder(
+    column: $table.dismissedUpdateVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -2547,6 +2697,16 @@ class $$SettingsTableAnnotationComposer
 
   GeneratedColumn<String> get palette =>
       $composableBuilder(column: $table.palette, builder: (column) => column);
+
+  GeneratedColumn<bool> get checkUpdates => $composableBuilder(
+    column: $table.checkUpdates,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dismissedUpdateVersion => $composableBuilder(
+    column: $table.dismissedUpdateVersion,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableManager
@@ -2584,6 +2744,8 @@ class $$SettingsTableTableManager
                 Value<bool> showMovingAvg = const Value.absent(),
                 Value<bool> showGoalLine = const Value.absent(),
                 Value<String> palette = const Value.absent(),
+                Value<bool> checkUpdates = const Value.absent(),
+                Value<String?> dismissedUpdateVersion = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 weightUnit: weightUnit,
@@ -2592,6 +2754,8 @@ class $$SettingsTableTableManager
                 showMovingAvg: showMovingAvg,
                 showGoalLine: showGoalLine,
                 palette: palette,
+                checkUpdates: checkUpdates,
+                dismissedUpdateVersion: dismissedUpdateVersion,
               ),
           createCompanionCallback:
               ({
@@ -2602,6 +2766,8 @@ class $$SettingsTableTableManager
                 Value<bool> showMovingAvg = const Value.absent(),
                 Value<bool> showGoalLine = const Value.absent(),
                 Value<String> palette = const Value.absent(),
+                Value<bool> checkUpdates = const Value.absent(),
+                Value<String?> dismissedUpdateVersion = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 weightUnit: weightUnit,
@@ -2610,6 +2776,8 @@ class $$SettingsTableTableManager
                 showMovingAvg: showMovingAvg,
                 showGoalLine: showGoalLine,
                 palette: palette,
+                checkUpdates: checkUpdates,
+                dismissedUpdateVersion: dismissedUpdateVersion,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

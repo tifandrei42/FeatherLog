@@ -2,12 +2,16 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/database.dart';
+import '../data/update_service.dart';
 import '../dev/dev_menu_screen.dart';
 import '../domain/bmi.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
+import '../providers/database_provider.dart';
+import '../providers/update_provider.dart';
 import 'app_shell.dart';
 import 'theme/app_theme.dart';
 import 'theme/tokens.dart';
@@ -60,6 +64,7 @@ class _TodayBody extends ConsumerWidget {
     final consistency = ref.watch(consistencyProvider);
     final milestones = ref.watch(milestonesProvider);
     final bmiCtx = ref.watch(bmiContextProvider);
+    final update = ref.watch(updateCheckProvider).value;
 
     final unit = settings?.weightUnit == 'lb' ? WeightUnit.lb : WeightUnit.kg;
 
@@ -71,6 +76,10 @@ class _TodayBody extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
+        if (update != null) ...[
+          _UpdateBanner(info: update),
+          const SizedBox(height: Spacing.md),
+        ],
         if (milestones.isNotEmpty) ...[
           _MilestoneBanner(label: milestones.last.label),
           const SizedBox(height: Spacing.md),
@@ -416,6 +425,74 @@ class _MilestoneBanner extends StatelessWidget {
                 color: theme.colorScheme.onSurface,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A dismissible "update available" banner shown when an opt-in check finds a
+/// newer release. "Update" opens the GitHub release page (where the APKs live);
+/// "Later" remembers this version so it isn't shown again.
+class _UpdateBanner extends ConsumerWidget {
+  const _UpdateBanner({required this.info});
+
+  final UpdateInfo info;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    return BentoTile(
+      color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+      borderColor: accent.withValues(alpha: 0.4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.system_update_outlined, color: accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Update available',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      '${info.version} is ready to install',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => ref
+                    .read(databaseProvider)
+                    .settingsDao
+                    .setDismissedUpdateVersion(info.version),
+                child: const Text('Later'),
+              ),
+              const SizedBox(width: 4),
+              FilledButton(
+                onPressed: () => launchUrl(
+                  Uri.parse(info.url),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: const Text('Update'),
+              ),
+            ],
           ),
         ],
       ),
