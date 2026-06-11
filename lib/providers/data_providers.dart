@@ -73,6 +73,15 @@ final milestonesProvider = Provider<List<Milestone>>((ref) {
   return detectMilestones(daily, goalKg: goalKg);
 });
 
+/// The next un-reached 25/50/75/100% waypoint toward the goal — a near target
+/// to aim for instead of the distant goal. Null when there's no goal, no data,
+/// or the goal is already reached. Recomputes when entries or the goal change.
+final nextMilestoneProvider = Provider<NextMilestone?>((ref) {
+  final daily = ref.watch(dailySeriesProvider);
+  final goalKg = ref.watch(profileProvider).value?.goalWeightKg;
+  return nextMilestone(daily, goalKg: goalKg);
+});
+
 /// Logging-consistency snapshot (positive facts only — no "missed days").
 /// Uses the wall clock for "today"; the underlying domain stays pure.
 typedef ConsistencySnapshot = ({

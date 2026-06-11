@@ -20,6 +20,7 @@ class WeightChart extends StatelessWidget {
     this.onDaySelected,
     this.selectedDay,
     this.goalKg,
+    this.goalLabel = 'Goal',
     this.showMovingAverage = false,
   });
 
@@ -34,8 +35,13 @@ class WeightChart extends StatelessWidget {
   /// The currently selected day, highlighted on the line.
   final DateTime? selectedDay;
 
-  /// Canonical goal weight (kg) to draw as a horizontal line, or null to hide.
+  /// Canonical weight (kg) of the horizontal reference line, or null to hide.
+  /// Trends passes the *next milestone* target here (which becomes the goal once
+  /// you're in the final stretch), so the y-axis isn't stretched to a far goal.
   final double? goalKg;
+
+  /// Short label shown on the reference line (e.g. 'Next' or 'Goal').
+  final String goalLabel;
 
   /// Whether to overlay a 7-day moving-average line on top of the raw series.
   /// Only drawn when there are at least two points.
@@ -157,7 +163,7 @@ class WeightChart extends StatelessWidget {
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: _goalColor(theme),
                         ),
-                        labelResolver: (_) => 'Goal',
+                        labelResolver: (_) => goalLabel,
                       ),
                     ),
                   ],

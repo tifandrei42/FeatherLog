@@ -98,6 +98,38 @@ void main() {
   });
 
   test(
+    'nextMilestoneProvider tracks the next waypoint toward the goal',
+    () async {
+      container.listen(entriesProvider, (_, _) {});
+      container.listen(profileProvider, (_, _) {});
+      container.listen(nextMilestoneProvider, (_, _) {});
+
+      expect(container.read(nextMilestoneProvider), isNull); // no data/goal yet
+
+      await db.profileDao.updateGoalWeight(70);
+      // start 90 -> current 84 = 30% of the 20 kg journey, so next is 50% (80 kg).
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 6, 1, 8),
+        weightKg: 90,
+      );
+      await db.weightEntryDao.addReading(
+        measuredAt: DateTime(2026, 6, 2, 8),
+        weightKg: 84,
+      );
+      await _await(() => container.read(entriesProvider), (v) => v.length == 2);
+      await _await(
+        () => container.read(profileProvider),
+        (p) => p?.goalWeightKg == 70,
+      );
+
+      final m = container.read(nextMilestoneProvider);
+      expect(m, isNotNull);
+      expect(m!.percent, 50);
+      expect(m.targetKg, closeTo(80.0, 1e-9));
+    },
+  );
+
+  test(
     'trendSnapshotProvider needs >=2 days (no false trend on day one)',
     () async {
       // With a single logged day the moving average equals the raw reading, so

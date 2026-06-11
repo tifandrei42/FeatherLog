@@ -41,4 +41,20 @@ void main() {
     // 75 kg ≈ 165.3 lb
     expect(lines.single.y, closeTo(165.3, 0.2));
   });
+
+  testWidgets('reference line uses the provided label', (tester) async {
+    // Trends passes the next-milestone target here with a 'Next' label.
+    await tester.pumpWidget(
+      host(
+        WeightChart(
+          daily: daily,
+          unit: WeightUnit.kg,
+          goalKg: 79.0,
+          goalLabel: 'Next',
+        ),
+      ),
+    );
+    final line = dataOf(tester).extraLinesData.horizontalLines.single;
+    expect(line.label.labelResolver(line), 'Next');
+  });
 }

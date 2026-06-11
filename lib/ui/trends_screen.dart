@@ -41,6 +41,17 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
     final unit = settings?.weightUnit == 'lb' ? WeightUnit.lb : WeightUnit.kg;
     final showGoalLine = settings?.showGoalLine ?? true;
     final showMovingAvg = settings?.showMovingAvg ?? true;
+    final next = ref.watch(nextMilestoneProvider);
+
+    // The chart's reference line is the *next milestone* (a near target), not the
+    // far goal — so the y-axis isn't stretched and the recent data stays
+    // readable. Once you're in the final stretch the next milestone is the goal
+    // itself, so the line lands on the goal then. Falls back to the goal when
+    // it's already reached.
+    final targetLineKg = showGoalLine
+        ? (next?.targetKg ?? profile?.goalWeightKg)
+        : null;
+    final targetLineLabel = (next != null && !next.isGoal) ? 'Next' : 'Goal';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trends')),
@@ -90,7 +101,8 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
                           daily: visibleDaily,
                           unit: unit,
                           selectedDay: selected?.day,
-                          goalKg: showGoalLine ? profile?.goalWeightKg : null,
+                          goalKg: targetLineKg,
+                          goalLabel: targetLineLabel,
                           showMovingAverage: showMovingAvg,
                           onDaySelected: (d) =>
                               setState(() => _selectedDay = d?.day),
@@ -187,7 +199,7 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
       children: [
         if (hasGoal)
           FilterChip(
-            label: const Text('Goal line'),
+            label: const Text('Next milestone'),
             avatar: const Icon(Icons.flag_outlined, size: 18),
             selected: showGoalLine,
             onSelected: (wantOn) async {

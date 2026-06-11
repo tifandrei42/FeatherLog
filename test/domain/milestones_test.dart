@@ -187,4 +187,60 @@ void main() {
       expect(newestUnseen(const [], <String>{}), isNull);
     });
   });
+
+  group('nextMilestone', () {
+    test('null without data or goal', () {
+      expect(nextMilestone(const [], goalKg: 70), isNull);
+      expect(nextMilestone(seriesFrom([80]), goalKg: null), isNull);
+    });
+
+    test('picks the next un-reached waypoint (losing goal)', () {
+      // start 90, goal 70 -> 20 kg journey. At 84 we've covered 6/20 = 30%, so
+      // the next waypoint is 50% (target 80).
+      final m = nextMilestone(seriesFrom([90, 87, 84]), goalKg: 70)!;
+      expect(m.percent, 50);
+      expect(m.targetKg, closeTo(80.0, 1e-9));
+      expect(m.toGoKg, closeTo(4.0, 1e-9)); // 84 -> 80
+      expect(m.progress, closeTo(0.30, 1e-9));
+      expect(m.label, 'Halfway to goal');
+    });
+
+    test('first waypoint is 25% right after starting', () {
+      // start 90, current 89 -> 5% covered -> next is 25% (target 85).
+      final m = nextMilestone(seriesFrom([90, 89]), goalKg: 70)!;
+      expect(m.percent, 25);
+      expect(m.targetKg, closeTo(85.0, 1e-9));
+    });
+
+    test('past 75% the next target is the goal itself', () {
+      // start 90, current 74 -> 16/20 = 80% -> next is the goal (100%).
+      final m = nextMilestone(seriesFrom([90, 74]), goalKg: 70)!;
+      expect(m.percent, 100);
+      expect(m.isGoal, isTrue);
+      expect(m.targetKg, closeTo(70.0, 1e-9));
+      expect(m.toGoKg, closeTo(4.0, 1e-9));
+      expect(m.label, 'Goal');
+    });
+
+    test('null once the goal is reached', () {
+      expect(nextMilestone(seriesFrom([90, 70]), goalKg: 70), isNull);
+      expect(nextMilestone(seriesFrom([90, 68]), goalKg: 70), isNull);
+    });
+
+    test('moving away from the goal reads as 0 progress, next is 25%', () {
+      // start 80, gained to 86, goal 70 -> progress clamps to 0.
+      final m = nextMilestone(seriesFrom([80, 86]), goalKg: 70)!;
+      expect(m.progress, 0);
+      expect(m.percent, 25);
+      expect(m.targetKg, closeTo(77.5, 1e-9)); // 80 - 0.25*10
+    });
+
+    test('works for a gaining goal too', () {
+      // start 60, current 63, goal 70 -> 3/10 = 30% -> next is 50% (target 65).
+      final m = nextMilestone(seriesFrom([60, 63]), goalKg: 70)!;
+      expect(m.percent, 50);
+      expect(m.targetKg, closeTo(65.0, 1e-9));
+      expect(m.toGoKg, closeTo(2.0, 1e-9));
+    });
+  });
 }

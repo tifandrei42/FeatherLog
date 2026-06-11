@@ -9,6 +9,7 @@ import '../data/update_service.dart';
 import '../dev/dev_menu_screen.dart';
 import '../dev/dev_tools.dart';
 import '../domain/bmi.dart';
+import '../domain/milestones.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
@@ -67,6 +68,7 @@ class _TodayBody extends ConsumerWidget {
     final milestones = ref.watch(milestonesProvider);
     final bmiCtx = ref.watch(bmiContextProvider);
     final trend = ref.watch(trendSnapshotProvider);
+    final nextMile = ref.watch(nextMilestoneProvider);
     final update = ref.watch(updateCheckProvider).value;
 
     final unit = settings?.weightUnit == 'lb' ? WeightUnit.lb : WeightUnit.kg;
@@ -97,6 +99,11 @@ class _TodayBody extends ConsumerWidget {
           showTrend: heroShowsTrend,
         ),
         const SizedBox(height: Spacing.md),
+        // A near target to aim for, shown only when there's a goal still ahead.
+        if (nextMile != null) ...[
+          _NextMilestoneTile(milestone: nextMile, unit: unit),
+          const SizedBox(height: Spacing.md),
+        ],
         _BmiTile(
           weightKg: last.weightKg,
           heightCm: profile?.heightCm,
@@ -303,6 +310,99 @@ class _ExplainerButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A near, attainable target: the next 25/50/75% waypoint toward the goal, with
+/// how far there is to go and an overall progress bar. Shown instead of the
+/// distant goal so there's always something close to aim for.
+class _NextMilestoneTile extends StatelessWidget {
+  const _NextMilestoneTile({required this.milestone, required this.unit});
+
+  final NextMilestone milestone;
+  final WeightUnit unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final unitLabel = unit == WeightUnit.lb ? 'lb' : 'kg';
+    final target = weightFromKg(milestone.targetKg, unit).toStringAsFixed(1);
+    final toGo = weightFromKg(milestone.toGoKg, unit).toStringAsFixed(1);
+    final pct = (milestone.progress * 100).round();
+
+    return BentoTile(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.flag_outlined, size: 18, color: accent),
+              const SizedBox(width: 6),
+              Text(
+                'NEXT MILESTONE',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                milestone.label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: target,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                TextSpan(
+                  text: ' $unitLabel',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$toGo $unitLabel to go',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: accent,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: milestone.progress,
+              minHeight: 8,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              color: accent,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$pct% of the way to your goal',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

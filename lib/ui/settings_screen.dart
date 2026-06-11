@@ -140,8 +140,10 @@ class SettingsScreen extends ConsumerWidget {
             onChanged: (v) => dao.settingsDao.setShowMovingAvg(v),
           ),
           SwitchListTile(
-            title: const Text('Goal line'),
-            subtitle: const Text('Show your goal weight on the chart'),
+            title: const Text('Next milestone line'),
+            subtitle: const Text(
+              'Mark the next milestone toward your goal on the chart',
+            ),
             value: settings?.showGoalLine ?? true,
             onChanged: (v) => dao.settingsDao.setShowGoalLine(v),
           ),
