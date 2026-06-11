@@ -3,14 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../data/database.dart';
-import '../domain/bmi.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
 import 'add_entry_sheet.dart';
-import 'theme/app_theme.dart';
 import 'theme/tokens.dart';
-import 'widgets/delta_pill.dart';
+import 'widgets/entry_tile.dart';
 
 /// The full, browsable log: every reading, newest first, grouped by month.
 ///
@@ -170,11 +168,14 @@ class _SwipeableEntry extends ConsumerWidget {
         }
         return false; // the stream handles row removal; never self-dismiss
       },
-      child: _HistoryEntryTile(
+      child: EntryTile(
         entry: entry,
         previous: previous,
         unit: unit,
         heightCm: heightCm,
+        framed: true,
+        dateFormat: DateFormat.MMMEd(),
+        onTap: () => showAddEntrySheet(context, existing: entry),
       ),
     );
   }
@@ -235,114 +236,6 @@ class _SwipeableEntry extends ConsumerWidget {
         children: alignment == Alignment.centerRight
             ? row.reversed.toList()
             : row,
-      ),
-    );
-  }
-}
-
-/// A single reading row: weight, date/time (+ BMI when height is known), an
-/// optional note, and a "since the previous log" delta pill. Tap to edit.
-/// Mirrors the compact Trends "Recent" row so the two read as one family.
-class _HistoryEntryTile extends StatelessWidget {
-  const _HistoryEntryTile({
-    required this.entry,
-    required this.previous,
-    required this.unit,
-    this.heightCm,
-  });
-
-  final WeightEntry entry;
-  final WeightEntry? previous;
-  final WeightUnit unit;
-  final double? heightCm;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<FeatherPalette>();
-    final v = weightFromKg(entry.weightKg, unit);
-    final unitLabel = unit == WeightUnit.lb ? 'lb' : 'kg';
-
-    final bmi = (heightCm != null && heightCm! > 0)
-        ? calculateBmi(weightKg: entry.weightKg, heightCm: heightCm!)
-        : null;
-    final bmiColor = bmi == null
-        ? null
-        : (palette?.forBmiCategory(bmiCategoryFor(bmi)) ??
-              theme.colorScheme.primary);
-
-    final deltaKg = previous == null
-        ? null
-        : entry.weightKg - previous!.weightKg;
-
-    final meta = StringBuffer()
-      ..write(DateFormat.MMMEd().format(entry.measuredAt))
-      ..write(' · ')
-      ..write(DateFormat.Hm().format(entry.measuredAt));
-    if (bmi != null) meta.write(' · BMI ${bmi.toStringAsFixed(1)}');
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(Radii.md),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          onTap: () => showAddEntrySheet(context, existing: entry),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                if (bmiColor != null) ...[
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: bmiColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${v.toStringAsFixed(1)} $unitLabel',
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        meta.toString(),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (entry.note != null && entry.note!.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          entry.note!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (deltaKg != null)
-                  DeltaPill(deltaKg: deltaKg, unit: unit, dense: true),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

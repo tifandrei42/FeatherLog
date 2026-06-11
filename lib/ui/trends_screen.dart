@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../data/database.dart';
-import '../domain/bmi.dart';
 import '../domain/daily.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
 import 'add_entry_sheet.dart';
 import 'history_screen.dart';
-import 'theme/app_theme.dart';
 import 'widgets/bento_tile.dart';
 import 'widgets/day_detail_card.dart';
-import 'widgets/delta_pill.dart';
+import 'widgets/entry_tile.dart';
 import 'widgets/section_header.dart';
 import 'widgets/stats_panel.dart';
 import 'widgets/weight_chart.dart';
@@ -176,13 +173,15 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
                   children: [
                     for (var i = 0; i < entries.length && i < 10; i++) ...[
                       if (i > 0) const Divider(height: 1),
-                      _EntryTile(
+                      EntryTile(
                         entry: entries[i],
                         previous: i + 1 < entries.length
                             ? entries[i + 1]
                             : null,
                         unit: unit,
                         heightCm: profile?.heightCm,
+                        onTap: () =>
+                            showAddEntrySheet(context, existing: entries[i]),
                       ),
                     ],
                   ],
@@ -256,106 +255,5 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
       if (d == day && e.note != null && e.note!.isNotEmpty) return e.note;
     }
     return null;
-  }
-}
-
-class _EntryTile extends StatelessWidget {
-  const _EntryTile({
-    required this.entry,
-    required this.previous,
-    required this.unit,
-    this.heightCm,
-  });
-
-  final WeightEntry entry;
-
-  /// The previous (older) reading, used for the "since your last log" delta.
-  /// Null only for the very first entry in history.
-  final WeightEntry? previous;
-  final WeightUnit unit;
-
-  /// Height in cm, when known, enables the per-row BMI indicator.
-  final double? heightCm;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final palette = theme.extension<FeatherPalette>();
-    final v = weightFromKg(entry.weightKg, unit);
-    final unitLabel = unit == WeightUnit.lb ? 'lb' : 'kg';
-
-    final bmi = (heightCm != null && heightCm! > 0)
-        ? calculateBmi(weightKg: entry.weightKg, heightCm: heightCm!)
-        : null;
-    final bmiColor = bmi == null
-        ? null
-        : (palette?.forBmiCategory(bmiCategoryFor(bmi)) ??
-              theme.colorScheme.primary);
-
-    final deltaKg = previous == null
-        ? null
-        : entry.weightKg - previous!.weightKg;
-
-    final meta = StringBuffer()
-      ..write(DateFormat.MMMd().format(entry.measuredAt))
-      ..write(' · ')
-      ..write(DateFormat.Hm().format(entry.measuredAt));
-    if (bmi != null) meta.write(' · BMI ${bmi.toStringAsFixed(1)}');
-
-    return InkWell(
-      onTap: () => showAddEntrySheet(context, existing: entry),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            // BMI category indicator: a calm coloured dot when height is known.
-            if (bmiColor != null) ...[
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: bmiColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${v.toStringAsFixed(1)} $unitLabel',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    meta.toString(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (entry.note != null && entry.note!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      entry.note!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            // "Since your last log" delta, aktiBMI-style. Absent for the first
-            // ever entry (nothing to compare against).
-            if (deltaKg != null)
-              DeltaPill(deltaKg: deltaKg, unit: unit, dense: true),
-          ],
-        ),
-      ),
-    );
   }
 }
