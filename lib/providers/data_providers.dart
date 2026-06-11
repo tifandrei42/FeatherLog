@@ -5,6 +5,7 @@ import '../domain/age.dart';
 import '../domain/consistency.dart';
 import '../domain/daily.dart';
 import '../domain/milestones.dart';
+import '../domain/stats.dart';
 import 'database_provider.dart';
 
 /// All weight entries, newest first. Rebuilds dependents whenever an entry is
@@ -36,6 +37,31 @@ final dailySeriesProvider = Provider<List<DailyWeight>>((ref) {
   final entries = ref.watch(entriesProvider).value ?? const <WeightEntry>[];
   return dailyAverages(
     entries.map((e) => Reading(measuredAt: e.measuredAt, weightKg: e.weightKg)),
+  );
+});
+
+/// The Today hero's headline numbers, derived from the smoothed series:
+/// [trendKg] is the latest 7-day moving-average weight (the honest, low-noise
+/// number, RESEARCH.md §4), and [weeklyTrendDeltaKg] is how that trend changed
+/// over the trailing week (trend-vs-trend, so a single heavy day doesn't
+/// whipsaw it). Both null when there isn't enough data.
+typedef TrendSnapshot = ({double? trendKg, double? weeklyTrendDeltaKg});
+
+final trendSnapshotProvider = Provider<TrendSnapshot>((ref) {
+  final daily = ref.watch(dailySeriesProvider);
+  final smoothed = movingAverage(daily);
+  // Need at least two logged days before the average is meaningfully a *trend*:
+  // with a single day the moving average just equals that day's reading, so
+  // leading with it and calling it a "trend" would be misleading (and would
+  // print the same number twice). Below the threshold the hero falls back to
+  // the raw "current weight".
+  if (smoothed.length < 2) {
+    return (trendKg: null, weeklyTrendDeltaKg: null);
+  }
+  return (
+    trendKg: smoothed.last.weightKg,
+    // periodChange over the smoothed series = the trend's own weekly delta.
+    weeklyTrendDeltaKg: periodChange(smoothed, 7),
   );
 });
 

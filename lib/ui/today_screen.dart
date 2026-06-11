@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/database.dart';
 import '../data/update_service.dart';
 import '../dev/dev_menu_screen.dart';
+import '../dev/dev_tools.dart';
 import '../domain/bmi.dart';
 import '../domain/units.dart';
 import '../providers/data_providers.dart';
@@ -32,8 +33,9 @@ class TodayScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('FeatherLog'),
         actions: [
-          // Dev-only entry point; tree-shaken out of release builds.
-          if (kDebugMode)
+          // Dev-only entry point; tree-shaken out of release builds. The
+          // `showDevTools` flag additionally lets the screenshot harness hide it.
+          if (kDebugMode && showDevTools)
             IconButton(
               icon: const Icon(Icons.science_outlined),
               tooltip: 'Developer tools',
@@ -64,9 +66,11 @@ class _TodayBody extends ConsumerWidget {
     final consistency = ref.watch(consistencyProvider);
     final milestones = ref.watch(milestonesProvider);
     final bmiCtx = ref.watch(bmiContextProvider);
+    final trend = ref.watch(trendSnapshotProvider);
     final update = ref.watch(updateCheckProvider).value;
 
     final unit = settings?.weightUnit == 'lb' ? WeightUnit.lb : WeightUnit.kg;
+    final heroShowsTrend = settings?.heroShowsTrend ?? true;
 
     if (entries.isEmpty) return const SizedBox.shrink();
     final last = entries.first;
@@ -84,7 +88,14 @@ class _TodayBody extends ConsumerWidget {
           _MilestoneBanner(label: milestones.last.label),
           const SizedBox(height: Spacing.md),
         ],
-        _HeroTile(last: last, unit: unit, deltaSinceLast: deltaSinceLast),
+        _HeroTile(
+          last: last,
+          unit: unit,
+          deltaSinceLast: deltaSinceLast,
+          trendKg: trend.trendKg,
+          weeklyTrendDeltaKg: trend.weeklyTrendDeltaKg,
+          showTrend: heroShowsTrend,
+        ),
         const SizedBox(height: Spacing.md),
         _BmiTile(
           weightKg: last.weightKg,
@@ -120,24 +131,49 @@ class _TodayBody extends ConsumerWidget {
   }
 }
 
-/// The prominent hero tile: the count-up current weight, the "since your last
-/// log" delta, and when it was logged — on a softly tinted surface.
+/// The prominent hero tile. By default it leads with the smoothed **trend
+/// weight** (the honest, low-noise number) and demotes today's raw reading to a
+/// caption; a small "why two numbers?" explainer is one tap away. When the user
+/// turns the trend hero off — or there isn't enough data for a trend yet — it
+/// falls back to the raw latest reading and the "since your last log" delta.
 class _HeroTile extends StatelessWidget {
   const _HeroTile({
     required this.last,
     required this.unit,
     required this.deltaSinceLast,
+    required this.trendKg,
+    required this.weeklyTrendDeltaKg,
+    required this.showTrend,
   });
 
   final WeightEntry last;
   final WeightUnit unit;
   final double? deltaSinceLast;
 
+  /// Latest 7-day moving-average weight in kg (null if too little data).
+  final double? trendKg;
+
+  /// Trend change over the trailing week in kg (null if too little data).
+  final double? weeklyTrendDeltaKg;
+
+  /// User preference: lead with the trend weight (default true).
+  final bool showTrend;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final unitLabel = unit == WeightUnit.lb ? 'lb' : 'kg';
-    final current = weightFromKg(last.weightKg, unit);
+
+    // Lead with the trend only when the user wants it AND there's a trend.
+    final useTrend = showTrend && trendKg != null;
+    final bigKg = useTrend ? trendKg! : last.weightKg;
+    final bigValue = weightFromKg(bigKg, unit);
+    final deltaKg = useTrend ? weeklyTrendDeltaKg : deltaSinceLast;
+    // "trend over the last 7 days" (smoothed) is deliberately distinct from the
+    // Trends screen's raw "Last 7 days" figure — same window, different number.
+    final deltaLabel = useTrend
+        ? 'trend over the last 7 days'
+        : 'since your last log';
 
     return BentoTile(
       padding: const EdgeInsets.all(Spacing.xl),
@@ -152,18 +188,27 @@ class _HeroTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'CURRENT WEIGHT',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              letterSpacing: 1.4,
-            ),
+          Row(
+            children: [
+              Text(
+                useTrend ? 'TREND WEIGHT' : 'CURRENT WEIGHT',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              if (useTrend)
+                // Tappable explainer — keeps the "two numbers" idea discoverable
+                // without a nagging one-time card.
+                const _ExplainerButton(),
+            ],
           ),
           const SizedBox(height: 6),
           // Count-up so the hero animates in (and tweens on a new log). One
           // Text.rich so value + unit read as "78.4 kg" together (a11y).
+          // Tabular figures keep the big number from jittering as it counts.
           TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: current),
+            tween: Tween(begin: 0, end: bigValue),
             duration: const Duration(milliseconds: 650),
             curve: Curves.easeOutCubic,
             builder: (context, value, _) => Text.rich(
@@ -174,6 +219,7 @@ class _HeroTile extends StatelessWidget {
                     style: theme.textTheme.displayLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       height: 1.0,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   TextSpan(
@@ -187,14 +233,14 @@ class _HeroTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          if (deltaSinceLast != null)
+          if (deltaKg != null)
             Row(
               children: [
-                DeltaPill(deltaKg: deltaSinceLast!, unit: unit),
+                DeltaPill(deltaKg: deltaKg, unit: unit),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
-                    'since your last log',
+                    deltaLabel,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -203,14 +249,60 @@ class _HeroTile extends StatelessWidget {
               ],
             ),
           const SizedBox(height: 8),
+          // When leading with the trend, demote the raw reading to a caption so
+          // the user still sees today's actual number.
           Text(
-            'Last logged ${DateFormat.yMMMd().format(last.measuredAt)} · '
-            '${DateFormat.Hm().format(last.measuredAt)}',
+            useTrend
+                ? "Today's reading "
+                      '${weightFromKg(last.weightKg, unit).toStringAsFixed(1)} '
+                      '$unitLabel · ${DateFormat.yMMMd().format(last.measuredAt)}'
+                : 'Last logged ${DateFormat.yMMMd().format(last.measuredAt)} · '
+                      '${DateFormat.Hm().format(last.measuredAt)}',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A small "?" affordance next to the TREND WEIGHT kicker that explains why the
+/// hero shows a smoothed trend rather than the raw scale reading.
+class _ExplainerButton extends StatelessWidget {
+  const _ExplainerButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return IconButton(
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      iconSize: 16,
+      color: theme.colorScheme.onSurfaceVariant,
+      icon: const Icon(Icons.help_outline),
+      tooltip: 'Why two numbers?',
+      onPressed: () => showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Why two numbers?'),
+          content: Text(
+            'Your weight swings day to day — mostly water, not fat. The big '
+            'number is your 7-day trend: the average that filters out that '
+            'noise, so it reflects real change.\n\n'
+            'The small "today\'s reading" is the raw number from the scale. '
+            'When it jumps around but the trend keeps drifting your way, the '
+            'trend is the truth.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Got it'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -279,7 +371,12 @@ class _BmiTile extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(bmi.toStringAsFixed(1), style: theme.textTheme.titleLarge),
+              Text(
+                bmi.toStringAsFixed(1),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
               const SizedBox(width: 10),
               Text(category.label, style: theme.textTheme.bodyMedium),
             ],
