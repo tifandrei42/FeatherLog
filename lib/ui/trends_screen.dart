@@ -148,17 +148,17 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
               SectionHeader(
                 'Recent',
                 // The full, month-grouped, editable log lives one tap away
-                // (not a 5th tab — the bottom nav stays at four).
-                trailing: entries.length > 10
-                    ? TextButton(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const HistoryScreen(),
-                          ),
-                        ),
-                        child: const Text('See all'),
-                      )
-                    : null,
+                // (not a 5th tab — the bottom nav stays at four). Always
+                // reachable when there's data, since swipe-to-delete-with-undo
+                // and the complete history only exist there.
+                trailing: TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HistoryScreen(),
+                    ),
+                  ),
+                  child: const Text('See all'),
+                ),
               ),
               // One inset card with hairline dividers so the readings read as a
               // single grouped object. entries is newest-first, so the "previous

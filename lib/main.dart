@@ -55,6 +55,14 @@ class _RootGate extends ConsumerWidget {
       return const Scaffold(body: SizedBox.shrink());
     }
 
+    // On a read error, fail open to the app — its screens surface their own
+    // error states. Never show first-run onboarding to a returning user just
+    // because their data couldn't be read this instant; doing so would also let
+    // a "skip" overwrite their (intact but momentarily unreadable) settings.
+    if (settingsAsync.hasError || entriesAsync.hasError) {
+      return const AppShell();
+    }
+
     final onboardingDone = settingsAsync.value?.onboardingDone ?? false;
     final hasEntries = (entriesAsync.value ?? const []).isNotEmpty;
     final showOnboarding = !onboardingDone && !hasEntries;

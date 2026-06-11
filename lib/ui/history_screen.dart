@@ -190,7 +190,18 @@ class _SwipeableEntry extends ConsumerWidget {
         content: const Text('Entry deleted'),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => dao.restoreEntry(removed),
+          // Guarded: in the rare case the freed row can't be re-inserted (e.g. a
+          // concurrent import reclaimed its id or source/externalId pair), tell
+          // the user instead of throwing an unhandled async error.
+          onPressed: () async {
+            try {
+              await dao.restoreEntry(removed);
+            } catch (_) {
+              messenger.showSnackBar(
+                const SnackBar(content: Text("Couldn't undo that delete")),
+              );
+            }
+          },
         ),
       ),
     );

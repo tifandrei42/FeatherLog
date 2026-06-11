@@ -137,26 +137,31 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     setState(() => _saving = true);
     final db = ref.read(databaseProvider);
 
-    await db.settingsDao.updateWeightUnit(_metric ? 'kg' : 'lb');
-    await db.settingsDao.updateLengthUnit(_metric ? 'cm' : 'in');
+    // One transaction so the save is atomic: if the app is killed mid-way we
+    // never land in a half-applied state (e.g. units changed but onboarding
+    // still "not done", which would re-show the flow with mismatched units).
+    await db.transaction(() async {
+      await db.settingsDao.updateWeightUnit(_metric ? 'kg' : 'lb');
+      await db.settingsDao.updateLengthUnit(_metric ? 'cm' : 'in');
 
-    final height = _parse(_heightController);
-    if (height != null) {
-      await db.profileDao.updateHeight(lengthToCm(height, _lengthUnit));
-    }
-    final goal = _parse(_goalController);
-    if (goal != null) {
-      await db.profileDao.updateGoalWeight(weightToKg(goal, _weightUnit));
-    }
-    final birthYear = int.tryParse(_birthYearController.text.trim());
-    if (birthYear != null &&
-        birthYear > 1900 &&
-        birthYear <= DateTime.now().year) {
-      await db.profileDao.updateBirthDate(DateTime(birthYear, 1, 1));
-    }
-    if (_sex != null) await db.profileDao.updateSex(_sex);
+      final height = _parse(_heightController);
+      if (height != null) {
+        await db.profileDao.updateHeight(lengthToCm(height, _lengthUnit));
+      }
+      final goal = _parse(_goalController);
+      if (goal != null) {
+        await db.profileDao.updateGoalWeight(weightToKg(goal, _weightUnit));
+      }
+      final birthYear = int.tryParse(_birthYearController.text.trim());
+      if (birthYear != null &&
+          birthYear > 1900 &&
+          birthYear <= DateTime.now().year) {
+        await db.profileDao.updateBirthDate(DateTime(birthYear, 1, 1));
+      }
+      if (_sex != null) await db.profileDao.updateSex(_sex);
 
-    await db.settingsDao.setOnboardingDone(true);
+      await db.settingsDao.setOnboardingDone(true);
+    });
 
     if (!mounted) return;
     // Pushed from Settings → pop back; first-run (home) → the root gate swaps
