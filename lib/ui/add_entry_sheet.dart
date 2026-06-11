@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,6 +45,11 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   late final TextEditingController _waterController;
   late DateTime _date;
 
+  /// When adding (not editing), the most recent logged weight (canonical kg).
+  /// Pre-fills the field and seeds the steppers, so a typical log is a couple
+  /// of taps rather than a full re-type.
+  double? _prefillKg;
+
   bool get _isEditing => widget.existing != null;
 
   WeightUnit get _unit {
@@ -55,10 +62,19 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
     super.initState();
     _date = widget.existing?.measuredAt ?? _today();
     final existingKg = widget.existing?.weightKg;
+    // When adding, seed from the most recent reading (entriesProvider is
+    // newest-first) so the steppers start from a sensible value.
+    if (existingKg == null) {
+      final entries = ref.read(entriesProvider).value;
+      if (entries != null && entries.isNotEmpty) {
+        _prefillKg = entries.first.weightKg;
+      }
+    }
+    final initialKg = existingKg ?? _prefillKg;
     _weightController = TextEditingController(
-      text: existingKg == null
+      text: initialKg == null
           ? ''
-          : _formatNumber(weightFromKg(existingKg, _unit)),
+          : _formatNumber(weightFromKg(initialKg, _unit)),
     );
     _noteController = TextEditingController(text: widget.existing?.note ?? '');
     _bodyFatController = TextEditingController(
@@ -92,6 +108,26 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
 
   /// Display text for an optional stored percentage (blank when unset).
   static String _pctText(double? v) => v == null ? '' : _formatNumber(v);
+
+  /// Nudges the weight field by [delta] in the *displayed* unit (the +/-
+  /// steppers and their hold-to-repeat). Rounds to 0.1 to avoid float noise and
+  /// clamps at 0. When the field is empty it starts from the pre-filled weight.
+  void _step(double delta) {
+    final current = double.tryParse(
+      _weightController.text.replaceAll(',', '.'),
+    );
+    final base =
+        current ??
+        (_prefillKg == null ? 0.0 : weightFromKg(_prefillKg!, _unit));
+    var next = base + delta;
+    if (next < 0) next = 0;
+    next = (next * 10).roundToDouble() / 10; // snap to 0.1
+    final text = _formatNumber(next);
+    _weightController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -214,40 +250,55 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 16),
+            // Weight front-and-centre with +/- steppers (hold to repeat) so the
+            // common "about the same as last time" log is a couple of taps.
+            Row(
+              children: [
+                _StepButton(
+                  icon: Icons.remove,
+                  semanticLabel: 'Decrease weight',
+                  onStep: () => _step(-0.1),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _weightController,
+                    autofocus: true,
+                    textAlign: TextAlign.center,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: 'Weight',
+                      suffixText: unitLabel,
+                      border: const OutlineInputBorder(),
+                    ),
+                    validator: _validateWeight,
+                    onFieldSubmitted: (_) => _save(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _StepButton(
+                  icon: Icons.add,
+                  semanticLabel: 'Increase weight',
+                  onStep: () => _step(0.1),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _pickDate,
               icon: const Icon(Icons.calendar_today, size: 18),
               label: Text(dateLabel),
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _weightController,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
-              decoration: InputDecoration(
-                labelText: 'Weight',
-                suffixText: unitLabel,
-                border: const OutlineInputBorder(),
-              ),
-              validator: _validateWeight,
-              onFieldSubmitted: (_) => _save(),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _noteController,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-                border: OutlineInputBorder(),
-              ),
-              textCapitalization: TextCapitalization.sentences,
-            ),
             const SizedBox(height: 8),
-            _CompositionFields(
+            // Note + body composition fold away (progressive disclosure) so the
+            // fast path stays uncluttered.
+            _DetailsSection(
+              note: _noteController,
               bodyFat: _bodyFatController,
               muscle: _muscleController,
               water: _waterController,
@@ -276,17 +327,20 @@ class _AddEntrySheetState extends ConsumerState<AddEntrySheet> {
   }
 }
 
-/// An optional, collapsible group of body-composition percentage fields shown
-/// inside the log sheet. These map to the nullable composition columns on the
-/// weigh-in row, so they're captured alongside weight (as a smart scale does).
-class _CompositionFields extends StatelessWidget {
-  const _CompositionFields({
+/// The optional fields (note + body-composition percentages) folded behind one
+/// collapsible "details" disclosure, so the fast logging path stays a weight
+/// and a Save. Composition maps to the nullable columns on the weigh-in row, so
+/// it's captured alongside weight (as a smart scale does).
+class _DetailsSection extends StatelessWidget {
+  const _DetailsSection({
+    required this.note,
     required this.bodyFat,
     required this.muscle,
     required this.water,
     required this.validator,
   });
 
+  final TextEditingController note;
   final TextEditingController bodyFat;
   final TextEditingController muscle;
   final TextEditingController water;
@@ -300,8 +354,17 @@ class _CompositionFields extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: const EdgeInsets.only(top: 4, bottom: 8),
-        title: const Text('Body composition (optional)'),
+        title: const Text('Add a note or body composition (optional)'),
         children: [
+          TextFormField(
+            controller: note,
+            decoration: const InputDecoration(
+              labelText: 'Note',
+              border: OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.sentences,
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(child: _field(bodyFat, 'Body fat')),
@@ -330,4 +393,73 @@ class _CompositionFields extends StatelessWidget {
         ),
         validator: validator,
       );
+}
+
+/// A round +/- button that fires once on tap and then repeats while held
+/// (hold-to-repeat), used by the weight steppers. Uses [GestureDetector] for
+/// the press-and-hold semantics, with an explicit [Semantics] button label
+/// since it isn't a standard button widget.
+class _StepButton extends StatefulWidget {
+  const _StepButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onStep,
+  });
+
+  final IconData icon;
+  final String semanticLabel;
+  final VoidCallback onStep;
+
+  @override
+  State<_StepButton> createState() => _StepButtonState();
+}
+
+class _StepButtonState extends State<_StepButton> {
+  Timer? _timer;
+
+  void _start() {
+    widget.onStep(); // immediate single step on press
+    _timer?.cancel();
+    // After a short hold, repeat until released.
+    _timer = Timer(const Duration(milliseconds: 400), () {
+      _timer = Timer.periodic(
+        const Duration(milliseconds: 90),
+        (_) => widget.onStep(),
+      );
+    });
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      label: widget.semanticLabel,
+      child: GestureDetector(
+        onTapDown: (_) => _start(),
+        onTapUp: (_) => _stop(),
+        onTapCancel: _stop,
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: scheme.secondaryContainer,
+          ),
+          child: Icon(widget.icon, color: scheme.onSecondaryContainer),
+        ),
+      ),
+    );
+  }
 }
