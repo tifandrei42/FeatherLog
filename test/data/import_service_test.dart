@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:featherlog/data/database.dart';
 import 'package:featherlog/data/export_service.dart';
@@ -96,38 +97,47 @@ void main() {
       expect((await db.profileDao.getOrCreateProfile()).heightCm, 180.0);
     });
 
-    test('export → import round-trips losslessly', () async {
-      // Seed, export, wipe via importing into a fresh db, compare.
-      await db.weightEntryDao.addReading(
-        measuredAt: DateTime.utc(2026, 5, 27, 8),
-        weightKg: 81.0,
-        note: 'a, b',
-      );
-      await db.weightEntryDao.addReading(
-        measuredAt: DateTime.utc(2026, 5, 28, 8),
-        weightKg: 80.5,
-      );
-      await db.profileDao.updateHeight(178);
+    test(
+      'export → import round-trips losslessly (incl. measurements)',
+      () async {
+        // Seed, export, wipe via importing into a fresh db, compare. Includes a
+        // body measurement to guard the regression where the production JSON
+        // export dropped measurements and a restore wiped them.
+        await db.weightEntryDao.addReading(
+          measuredAt: DateTime.utc(2026, 5, 27, 8),
+          weightKg: 81.0,
+          note: 'a, b',
+        );
+        await db.weightEntryDao.addReading(
+          measuredAt: DateTime.utc(2026, 5, 28, 8),
+          weightKg: 80.5,
+        );
+        await db.bodyMeasurementDao.addMeasurement(
+          measuredAt: DateTime.utc(2026, 5, 28, 8),
+          type: 'waist',
+          valueCm: 84.0,
+        );
+        await db.profileDao.updateHeight(178);
 
-      final entries = await db.weightEntryDao.getAllEntries();
-      final profile = await db.profileDao.getOrCreateProfile();
-      final settings = await db.settingsDao.getOrCreateSettings();
-      final json = const ExportService().toJson(
-        profile: profile,
-        settings: settings,
-        entries: entries,
-        exportedAt: DateTime.utc(2026, 5, 30),
-      );
+        final json = const ExportService().toJson(
+          profile: await db.profileDao.getOrCreateProfile(),
+          settings: await db.settingsDao.getOrCreateSettings(),
+          entries: await db.weightEntryDao.getAllEntries(),
+          measurements: await db.bodyMeasurementDao.getAll(),
+          exportedAt: DateTime.utc(2026, 5, 30),
+        );
 
-      final fresh = AppDatabase.forTesting(NativeDatabase.memory());
-      await fresh.applyImport(const ImportService().parse(json));
-      final restored = await fresh.weightEntryDao.getAllEntries();
-      expect(restored, hasLength(2));
-      expect(restored.map((e) => e.weightKg), [81.0, 80.5]);
-      expect(restored.first.note, 'a, b');
-      expect((await fresh.profileDao.getOrCreateProfile()).heightCm, 178.0);
-      await fresh.close();
-    });
+        final fresh = AppDatabase.forTesting(NativeDatabase.memory());
+        await fresh.applyImport(const ImportService().parse(json));
+        final restored = await fresh.weightEntryDao.getAllEntries();
+        expect(restored, hasLength(2));
+        expect(restored.map((e) => e.weightKg), [81.0, 80.5]);
+        expect(restored.first.note, 'a, b');
+        expect((await fresh.profileDao.getOrCreateProfile()).heightCm, 178.0);
+        expect(await fresh.bodyMeasurementDao.getAll(), hasLength(1));
+        await fresh.close();
+      },
+    );
   });
 
   group('body composition (issue #47)', () {
@@ -176,6 +186,7 @@ void main() {
         profile: await db.profileDao.getOrCreateProfile(),
         settings: await db.settingsDao.getOrCreateSettings(),
         entries: await db.weightEntryDao.getAllEntries(),
+        measurements: const [],
         exportedAt: DateTime.utc(2026, 5, 30),
       );
 
@@ -244,6 +255,137 @@ void main() {
     });
   });
 
+  group('v7 provenance + event fields', () {
+    test('parses source/external_id/profile_id/is_event/event_label', () {
+      final r = importer.parse(
+        '{"schema_version":2,"entries":[{'
+        '"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0,'
+        '"source":"aktibmi","external_id":"abc-1","profile_id":2,'
+        '"is_event":true,"event_label":"started gym"}]}',
+      );
+      expect(r.isOk, isTrue);
+      final c = r.entries.single;
+      expect(c.source.value, 'aktibmi');
+      expect(c.externalId.value, 'abc-1');
+      expect(c.profileId.value, 2);
+      expect(c.isEvent.value, isTrue);
+      expect(c.eventLabel.value, 'started gym');
+    });
+
+    test('absent v7 fields default to null/false (older files import)', () {
+      final r = importer.parse(
+        '{"schema_version":2,"entries":'
+        '[{"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0}]}',
+      );
+      expect(r.isOk, isTrue);
+      final c = r.entries.single;
+      expect(c.source.value, isNull);
+      expect(c.isEvent.value, isFalse);
+      expect(c.eventLabel.value, isNull);
+    });
+
+    test('malformed v7 field types are coerced, not thrown', () {
+      // source as a number, profile_id as a string, is_event as a string:
+      // the parser stays lenient (never throws) and falls back to defaults.
+      final r = importer.parse(
+        '{"schema_version":2,"entries":[{'
+        '"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0,'
+        '"source":42,"profile_id":"nope","is_event":"yes"}]}',
+      );
+      expect(r.isOk, isTrue);
+      final c = r.entries.single;
+      expect(c.source.value, isNull);
+      expect(c.profileId.value, isNull);
+      expect(c.isEvent.value, isFalse); // only literal true counts
+    });
+
+    test(
+      're-import is idempotent on (source, external_id), not a crash',
+      () async {
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        // Two rows claim the same source record (different timestamps); the
+        // importer collapses them to one (last wins) so applying never violates
+        // the UNIQUE(source, external_id) index or aborts the restore.
+        final r = importer.parse(
+          '{"schema_version":2,"entries":['
+          '{"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0,'
+          '"source":"x","external_id":"dup"},'
+          '{"measured_at":"2026-05-29T07:00:00Z","weight_kg":79.0,'
+          '"source":"x","external_id":"dup"}]}',
+        );
+        expect(r.isOk, isTrue);
+        expect(r.entries, hasLength(1)); // de-duped in the parser
+        await db.applyImport(r); // does not throw
+        final all = await db.weightEntryDao.getAllEntries();
+        expect(all, hasLength(1));
+        expect(all.single.weightKg, 79.0); // last occurrence wins
+        await db.close();
+      },
+    );
+
+    test('same instant, different provenance → both rows survive', () {
+      // A manually-entered reading and an imported reading can share an exact
+      // timestamp and are genuinely different rows; neither should be dropped.
+      final r = importer.parse(
+        '{"schema_version":2,"entries":['
+        '{"measured_at":"2026-05-28T07:00:00Z","weight_kg":80.0},'
+        '{"measured_at":"2026-05-28T07:00:00Z","weight_kg":81.0,'
+        '"source":"health_connect","external_id":"hc-1"}]}',
+      );
+      expect(r.isOk, isTrue);
+      expect(r.entries, hasLength(2));
+    });
+
+    test('measurements de-dupe on provenance; restore does not abort', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      final r = importer.parse(
+        '{"schema_version":2,"entries":[],"measurements":['
+        '{"measured_at":"2026-05-28T08:00:00Z","type":"waist","value_cm":84.0,'
+        '"source":"x","external_id":"m1"},'
+        '{"measured_at":"2026-05-29T08:00:00Z","type":"waist","value_cm":83.0,'
+        '"source":"x","external_id":"m1"}]}',
+      );
+      expect(r.isOk, isTrue);
+      expect(r.measurements, hasLength(1)); // de-duped on (source, external_id)
+      await db.applyImport(r); // no unique-index abort
+      expect(await db.bodyMeasurementDao.getAll(), hasLength(1));
+      await db.close();
+    });
+
+    test('export → import preserves an event entry with provenance', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      await db
+          .into(db.weightEntries)
+          .insert(
+            WeightEntriesCompanion.insert(
+              measuredAt: DateTime.utc(2026, 5, 28, 8),
+              weightKg: 80.0,
+              source: const Value('aktibmi'),
+              externalId: const Value('row-7'),
+              isEvent: const Value(true),
+              eventLabel: const Value('vacation'),
+            ),
+          );
+      final json = const ExportService().toJson(
+        profile: await db.profileDao.getOrCreateProfile(),
+        settings: await db.settingsDao.getOrCreateSettings(),
+        entries: await db.weightEntryDao.getAllEntries(),
+        measurements: const [],
+        exportedAt: DateTime.utc(2026, 5, 30),
+      );
+
+      final fresh = AppDatabase.forTesting(NativeDatabase.memory());
+      await fresh.applyImport(const ImportService().parse(json));
+      final e = (await fresh.weightEntryDao.getAllEntries()).single;
+      expect(e.source, 'aktibmi');
+      expect(e.externalId, 'row-7');
+      expect(e.isEvent, isTrue);
+      expect(e.eventLabel, 'vacation');
+      await db.close();
+      await fresh.close();
+    });
+  });
+
   group('profile sex + birth date (issue #51)', () {
     test('parses sex and birth_date from the profile', () {
       final r = importer.parse(
@@ -278,6 +420,7 @@ void main() {
         profile: await db.profileDao.getOrCreateProfile(),
         settings: await db.settingsDao.getOrCreateSettings(),
         entries: await db.weightEntryDao.getAllEntries(),
+        measurements: const [],
         exportedAt: DateTime.utc(2026, 5, 30),
       );
 

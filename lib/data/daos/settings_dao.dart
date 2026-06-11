@@ -55,4 +55,13 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> setDismissedUpdateVersion(String? version) =>
       _patch(SettingsCompanion(dismissedUpdateVersion: Value(version)));
+
+  Future<void> setOnboardingDone(bool value) =>
+      _patch(SettingsCompanion(onboardingDone: Value(value)));
+
+  Future<void> setHeroShowsTrend(bool value) =>
+      _patch(SettingsCompanion(heroShowsTrend: Value(value)));
+
+  Future<void> setShowEnergyEstimate(bool value) =>
+      _patch(SettingsCompanion(showEnergyEstimate: Value(value)));
 }

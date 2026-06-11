@@ -27,6 +27,9 @@ void main() {
     showGoalLine: true,
     palette: 'meadow',
     checkUpdates: false,
+    onboardingDone: false,
+    heroShowsTrend: true,
+    showEnergyEstimate: false,
   );
   final entries = [
     WeightEntry(
@@ -34,6 +37,7 @@ void main() {
       measuredAt: DateTime.utc(2026, 5, 28, 7, 30),
       weightKg: 80.4,
       note: null,
+      isEvent: false,
       createdAt: DateTime.utc(2026, 5, 28),
       updatedAt: DateTime.utc(2026, 5, 28),
     ),
@@ -42,6 +46,7 @@ void main() {
       measuredAt: DateTime.utc(2026, 5, 29, 7, 15),
       weightKg: 80.1,
       note: 'after run, felt great',
+      isEvent: false,
       createdAt: DateTime.utc(2026, 5, 29),
       updatedAt: DateTime.utc(2026, 5, 29),
     ),
@@ -53,6 +58,7 @@ void main() {
         profile: profile,
         settings: settings,
         entries: entries,
+        measurements: const [],
         exportedAt: DateTime.utc(2026, 5, 30, 10),
       );
       final map = jsonDecode(json) as Map<String, dynamic>;
@@ -74,9 +80,30 @@ void main() {
         profile: profile,
         settings: settings,
         entries: entries,
+        measurements: const [],
         exportedAt: DateTime.utc(2026, 5, 30),
       );
       expect(() => jsonDecode(json), returnsNormally);
+    });
+
+    test('writes the v7 provenance/event keys on each entry', () {
+      final json = service.toJson(
+        profile: profile,
+        settings: settings,
+        entries: entries,
+        measurements: const [],
+        exportedAt: DateTime.utc(2026, 5, 30),
+      );
+      final first =
+          (jsonDecode(json) as Map<String, dynamic>)['entries'][0]
+              as Map<String, dynamic>;
+      // Keys are always present (null/false for app-entered rows).
+      expect(first.containsKey('source'), isTrue);
+      expect(first['source'], isNull);
+      expect(first['external_id'], isNull);
+      expect(first['profile_id'], isNull);
+      expect(first['is_event'], isFalse);
+      expect(first['event_label'], isNull);
     });
   });
 

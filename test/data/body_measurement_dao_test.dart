@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:featherlog/data/database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -93,5 +94,37 @@ void main() {
 
     expect(await db.bodyMeasurementDao.deleteMeasurement(id), 1);
     expect(await db.bodyMeasurementDao.getAll(), isEmpty);
+  });
+
+  test('updateMeasurement preserves v7 provenance fields', () async {
+    // Regression: replace() used to null out source/externalId/profileId on
+    // every edit of an imported measurement.
+    final id = await db
+        .into(db.bodyMeasurements)
+        .insert(
+          BodyMeasurementsCompanion.insert(
+            measuredAt: DateTime(2026, 5, 28, 8),
+            type: 'waist',
+            valueCm: 85.0,
+            source: const Value('aktibmi'),
+            externalId: const Value('m-3'),
+            profileId: const Value(2),
+          ),
+        );
+    await db.bodyMeasurementDao.updateMeasurement(
+      id: id,
+      measuredAt: DateTime(2026, 5, 28, 8),
+      type: 'waist',
+      valueCm: 83.0,
+      note: 'fixed',
+    );
+    final row = await (db.select(
+      db.bodyMeasurements,
+    )..where((t) => t.id.equals(id))).getSingle();
+    expect(row.valueCm, 83.0);
+    expect(row.note, 'fixed');
+    expect(row.source, 'aktibmi');
+    expect(row.externalId, 'm-3');
+    expect(row.profileId, 2);
   });
 }

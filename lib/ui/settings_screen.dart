@@ -122,6 +122,15 @@ class SettingsScreen extends ConsumerWidget {
               onSelected: (id) => dao.settingsDao.updatePalette(id),
             ),
           ),
+          SwitchListTile(
+            title: const Text('Lead with trend weight'),
+            subtitle: const Text(
+              'Show your smoothed 7-day trend as the big number on Today; '
+              'the raw reading becomes a caption.',
+            ),
+            value: settings?.heroShowsTrend ?? true,
+            onChanged: (v) => dao.settingsDao.setHeroShowsTrend(v),
+          ),
 
           _header(context, 'Chart overlays'),
           SwitchListTile(
@@ -228,6 +237,7 @@ class SettingsScreen extends ConsumerWidget {
           profile: profile,
           settings: settings,
           entries: entries,
+          measurements: await db.bodyMeasurementDao.getAll(),
           exportedAt: DateTime.now(),
         );
         filename = 'featherlog_export.json';

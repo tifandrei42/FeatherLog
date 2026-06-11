@@ -64,23 +64,28 @@ class BodyMeasurementDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Updates an existing reading by id. Bumps `updatedAt`.
+  ///
+  /// Uses `write()` (partial update), not `replace()`, so the v7 provenance
+  /// fields (source, externalId, profileId) absent from the companion are left
+  /// untouched rather than reset to null on every edit (see WeightEntryDao).
   Future<bool> updateMeasurement({
     required int id,
     required DateTime measuredAt,
     required String type,
     required double valueCm,
     String? note,
-  }) {
-    return update(bodyMeasurements).replace(
-      BodyMeasurementsCompanion(
-        id: Value(id),
-        measuredAt: Value(measuredAt),
-        type: Value(type),
-        valueCm: Value(valueCm),
-        note: Value(note),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  }) async {
+    final count =
+        await (update(bodyMeasurements)..where((t) => t.id.equals(id))).write(
+          BodyMeasurementsCompanion(
+            measuredAt: Value(measuredAt),
+            type: Value(type),
+            valueCm: Value(valueCm),
+            note: Value(note),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+    return count > 0;
   }
 
   /// Deletes a single reading by id. Returns the number of rows removed.

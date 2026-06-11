@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:featherlog/data/database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,6 +91,40 @@ void main() {
       expect(all, hasLength(1));
       expect(all.single.weightKg, 78.2);
       expect(all.single.note, 'corrected');
+    });
+
+    test('updateReading preserves v7 provenance/event fields', () async {
+      // Edit an imported, event-flagged reading and confirm the provenance and
+      // event fields survive (regression: replace() used to null them out).
+      final id = await db
+          .into(db.weightEntries)
+          .insert(
+            WeightEntriesCompanion.insert(
+              measuredAt: DateTime(2026, 5, 28, 8),
+              weightKg: 80.0,
+              source: const Value('aktibmi'),
+              externalId: const Value('row-7'),
+              profileId: const Value(2),
+              isEvent: const Value(true),
+              eventLabel: const Value('started gym'),
+            ),
+          );
+      await db.weightEntryDao.updateReading(
+        id: id,
+        measuredAt: DateTime(2026, 5, 28, 8),
+        weightKg: 78.2,
+        note: 'corrected',
+      );
+      final row = await (db.select(
+        db.weightEntries,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(row.weightKg, 78.2);
+      expect(row.note, 'corrected');
+      expect(row.source, 'aktibmi');
+      expect(row.externalId, 'row-7');
+      expect(row.profileId, 2);
+      expect(row.isEvent, isTrue);
+      expect(row.eventLabel, 'started gym');
     });
 
     test('deleteEntry removes a single row', () async {
