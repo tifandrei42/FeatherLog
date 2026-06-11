@@ -61,6 +61,10 @@ dev_dependencies:
   drift_dev: ^2.33.0
   build_runner: ^2.15.0
   flutter_launcher_icons: ^0.14.4
+  # Used only by the migration test to stage a pre-migration (v6) database
+  # directly, then let drift migrate it on open. Already present transitively
+  # via drift; pinned here so the test can import it without a lint.
+  sqlite3: ^3.3.2
 
 # App launcher icon generation (run: dart run flutter_launcher_icons).
 # Source is the hand-built feather mark (Documentation/featherlog-app-icons),
