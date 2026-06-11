@@ -28,11 +28,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) => m.createAll(),
+    onCreate: (m) async {
+      await m.createAll();
+      // createAll() builds tables but not the helper indexes — add them so a
+      // fresh install matches an upgraded one.
+      await _createIndexes();
+    },
     onUpgrade: (m, from, to) async {
       // v1 → v2: WeightEntries moved from a unique `date` to a non-unique
       // `measuredAt` timestamp (multiple readings per day are now kept).
@@ -64,8 +69,50 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(settings, settings.checkUpdates);
         await m.addColumn(settings, settings.dismissedUpdateVersion);
       }
+      // v6 → v7: provenance/event columns on the data tables + a few defaulted
+      // Settings flags + helper indexes (the "foundation" that unblocks import
+      // idempotency, event flags, onboarding, and the trend hero). All
+      // additive: nullable or defaulted, so existing rows are untouched.
+      if (from < 7) {
+        await m.addColumn(weightEntries, weightEntries.source);
+        await m.addColumn(weightEntries, weightEntries.externalId);
+        await m.addColumn(weightEntries, weightEntries.profileId);
+        await m.addColumn(weightEntries, weightEntries.isEvent);
+        await m.addColumn(weightEntries, weightEntries.eventLabel);
+        await m.addColumn(bodyMeasurements, bodyMeasurements.source);
+        await m.addColumn(bodyMeasurements, bodyMeasurements.externalId);
+        await m.addColumn(bodyMeasurements, bodyMeasurements.profileId);
+        await m.addColumn(settings, settings.onboardingDone);
+        await m.addColumn(settings, settings.heroShowsTrend);
+        await m.addColumn(settings, settings.showEnergyEstimate);
+        await _createIndexes();
+      }
     },
   );
+
+  /// Helper indexes created on both fresh installs ([onCreate]) and the v7
+  /// upgrade. `measured_at` speeds chart range queries; the unique
+  /// `(source, external_id)` pair makes re-imports idempotent. SQLite treats
+  /// NULLs as distinct, so manually-entered rows (null source/external_id)
+  /// never collide. `IF NOT EXISTS` keeps this safe to run more than once.
+  Future<void> _createIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_weight_entries_measured_at '
+      'ON weight_entries (measured_at)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_body_measurements_measured_at '
+      'ON body_measurements (measured_at)',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_weight_entries_source_external '
+      'ON weight_entries (source, external_id)',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_body_measurements_source_external '
+      'ON body_measurements (source, external_id)',
+    );
+  }
 
   /// Applies a parsed [ImportResult] as a full restore, in one transaction:
   /// existing entries are replaced, and profile/settings fields present in the

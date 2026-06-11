@@ -48,6 +48,27 @@ class WeightEntries extends Table {
   RealColumn get musclePct => real().nullable()();
   RealColumn get waterPct => real().nullable()();
 
+  /// Provenance of this reading: null = manually entered in the app;
+  /// otherwise 'aktibmi' | 'health_connect' | … Paired with [externalId] for
+  /// idempotent re-import (unique index on the pair, NULLs exempt). v7.
+  TextColumn get source => text().nullable()();
+
+  /// Source-native identifier (e.g. a Health Connect record id), used with
+  /// [source] to de-duplicate re-imports. Null for manual entries. v7.
+  TextColumn get externalId => text().nullable()();
+
+  /// Owning profile (logically references [Profiles.id]). Null = the default
+  /// profile, so single-profile behaviour is unchanged; multi-profile later
+  /// becomes UI work, not a data migration. v7.
+  IntColumn get profileId => integer().nullable()();
+
+  /// Marks this reading as a user "event" (e.g. "started gym") so the chart can
+  /// pin it. Defaulted false so existing rows are unaffected. v7.
+  BoolColumn get isEvent => boolean().withDefault(const Constant(false))();
+
+  /// Optional short label shown on the chart's event pin (only when [isEvent]). v7.
+  TextColumn get eventLabel => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
@@ -70,6 +91,14 @@ class BodyMeasurements extends Table {
   RealColumn get valueCm => real()();
 
   TextColumn get note => text().nullable()();
+
+  /// Provenance + source-native id, mirroring [WeightEntries] for idempotent
+  /// re-import. Null for manual entries. v7.
+  TextColumn get source => text().nullable()();
+  TextColumn get externalId => text().nullable()();
+
+  /// Owning profile (logically references [Profiles.id]); null = default. v7.
+  IntColumn get profileId => integer().nullable()();
 
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
@@ -102,4 +131,21 @@ class Settings extends Table {
   /// The release tag the user dismissed from the update banner (e.g. 'v1.2.0'),
   /// so a declined update isn't shown again. Null until something is dismissed.
   TextColumn get dismissedUpdateVersion => text().nullable()();
+
+  /// True once first-run onboarding has been completed (or skipped). Gates the
+  /// onboarding flow so it shows only once. v7.
+  BoolColumn get onboardingDone =>
+      boolean().withDefault(const Constant(false))();
+
+  /// When true (default) the Today hero leads with the smoothed *trend* weight
+  /// and demotes the raw reading to a caption; when false it leads with the raw
+  /// latest reading. The trend is the honest, less-noisy number (RESEARCH.md
+  /// §4). v7.
+  BoolColumn get heroShowsTrend =>
+      boolean().withDefault(const Constant(true))();
+
+  /// Opt-in: show the estimated energy-balance insight (kcal/day from the
+  /// weight trend). Off by default; always framed as an estimate. v7.
+  BoolColumn get showEnergyEstimate =>
+      boolean().withDefault(const Constant(false))();
 }

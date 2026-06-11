@@ -495,6 +495,63 @@ class $WeightEntriesTable extends WeightEntries
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _externalIdMeta = const VerificationMeta(
+    'externalId',
+  );
+  @override
+  late final GeneratedColumn<String> externalId = GeneratedColumn<String>(
+    'external_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+    'profile_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isEventMeta = const VerificationMeta(
+    'isEvent',
+  );
+  @override
+  late final GeneratedColumn<bool> isEvent = GeneratedColumn<bool>(
+    'is_event',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_event" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _eventLabelMeta = const VerificationMeta(
+    'eventLabel',
+  );
+  @override
+  late final GeneratedColumn<String> eventLabel = GeneratedColumn<String>(
+    'event_label',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -528,6 +585,11 @@ class $WeightEntriesTable extends WeightEntries
     bodyFatPct,
     musclePct,
     waterPct,
+    source,
+    externalId,
+    profileId,
+    isEvent,
+    eventLabel,
     createdAt,
     updatedAt,
   ];
@@ -589,6 +651,36 @@ class $WeightEntriesTable extends WeightEntries
         waterPct.isAcceptableOrUnknown(data['water_pct']!, _waterPctMeta),
       );
     }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('external_id')) {
+      context.handle(
+        _externalIdMeta,
+        externalId.isAcceptableOrUnknown(data['external_id']!, _externalIdMeta),
+      );
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    }
+    if (data.containsKey('is_event')) {
+      context.handle(
+        _isEventMeta,
+        isEvent.isAcceptableOrUnknown(data['is_event']!, _isEventMeta),
+      );
+    }
+    if (data.containsKey('event_label')) {
+      context.handle(
+        _eventLabelMeta,
+        eventLabel.isAcceptableOrUnknown(data['event_label']!, _eventLabelMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -638,6 +730,26 @@ class $WeightEntriesTable extends WeightEntries
         DriftSqlType.double,
         data['${effectivePrefix}water_pct'],
       ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      ),
+      externalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}external_id'],
+      ),
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}profile_id'],
+      ),
+      isEvent: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_event'],
+      )!,
+      eventLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}event_label'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -671,6 +783,27 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
   final double? bodyFatPct;
   final double? musclePct;
   final double? waterPct;
+
+  /// Provenance of this reading: null = manually entered in the app;
+  /// otherwise 'aktibmi' | 'health_connect' | … Paired with [externalId] for
+  /// idempotent re-import (unique index on the pair, NULLs exempt). v7.
+  final String? source;
+
+  /// Source-native identifier (e.g. a Health Connect record id), used with
+  /// [source] to de-duplicate re-imports. Null for manual entries. v7.
+  final String? externalId;
+
+  /// Owning profile (logically references [Profiles.id]). Null = the default
+  /// profile, so single-profile behaviour is unchanged; multi-profile later
+  /// becomes UI work, not a data migration. v7.
+  final int? profileId;
+
+  /// Marks this reading as a user "event" (e.g. "started gym") so the chart can
+  /// pin it. Defaulted false so existing rows are unaffected. v7.
+  final bool isEvent;
+
+  /// Optional short label shown on the chart's event pin (only when [isEvent]). v7.
+  final String? eventLabel;
   final DateTime createdAt;
   final DateTime updatedAt;
   const WeightEntry({
@@ -681,6 +814,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     this.bodyFatPct,
     this.musclePct,
     this.waterPct,
+    this.source,
+    this.externalId,
+    this.profileId,
+    required this.isEvent,
+    this.eventLabel,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -702,6 +840,19 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     if (!nullToAbsent || waterPct != null) {
       map['water_pct'] = Variable<double>(waterPct);
     }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
+    }
+    if (!nullToAbsent || externalId != null) {
+      map['external_id'] = Variable<String>(externalId);
+    }
+    if (!nullToAbsent || profileId != null) {
+      map['profile_id'] = Variable<int>(profileId);
+    }
+    map['is_event'] = Variable<bool>(isEvent);
+    if (!nullToAbsent || eventLabel != null) {
+      map['event_label'] = Variable<String>(eventLabel);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -722,6 +873,19 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
       waterPct: waterPct == null && nullToAbsent
           ? const Value.absent()
           : Value(waterPct),
+      source: source == null && nullToAbsent
+          ? const Value.absent()
+          : Value(source),
+      externalId: externalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalId),
+      profileId: profileId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(profileId),
+      isEvent: Value(isEvent),
+      eventLabel: eventLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(eventLabel),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -740,6 +904,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
       bodyFatPct: serializer.fromJson<double?>(json['bodyFatPct']),
       musclePct: serializer.fromJson<double?>(json['musclePct']),
       waterPct: serializer.fromJson<double?>(json['waterPct']),
+      source: serializer.fromJson<String?>(json['source']),
+      externalId: serializer.fromJson<String?>(json['externalId']),
+      profileId: serializer.fromJson<int?>(json['profileId']),
+      isEvent: serializer.fromJson<bool>(json['isEvent']),
+      eventLabel: serializer.fromJson<String?>(json['eventLabel']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -755,6 +924,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
       'bodyFatPct': serializer.toJson<double?>(bodyFatPct),
       'musclePct': serializer.toJson<double?>(musclePct),
       'waterPct': serializer.toJson<double?>(waterPct),
+      'source': serializer.toJson<String?>(source),
+      'externalId': serializer.toJson<String?>(externalId),
+      'profileId': serializer.toJson<int?>(profileId),
+      'isEvent': serializer.toJson<bool>(isEvent),
+      'eventLabel': serializer.toJson<String?>(eventLabel),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -768,6 +942,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     Value<double?> bodyFatPct = const Value.absent(),
     Value<double?> musclePct = const Value.absent(),
     Value<double?> waterPct = const Value.absent(),
+    Value<String?> source = const Value.absent(),
+    Value<String?> externalId = const Value.absent(),
+    Value<int?> profileId = const Value.absent(),
+    bool? isEvent,
+    Value<String?> eventLabel = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => WeightEntry(
@@ -778,6 +957,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     bodyFatPct: bodyFatPct.present ? bodyFatPct.value : this.bodyFatPct,
     musclePct: musclePct.present ? musclePct.value : this.musclePct,
     waterPct: waterPct.present ? waterPct.value : this.waterPct,
+    source: source.present ? source.value : this.source,
+    externalId: externalId.present ? externalId.value : this.externalId,
+    profileId: profileId.present ? profileId.value : this.profileId,
+    isEvent: isEvent ?? this.isEvent,
+    eventLabel: eventLabel.present ? eventLabel.value : this.eventLabel,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -794,6 +978,15 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
           : this.bodyFatPct,
       musclePct: data.musclePct.present ? data.musclePct.value : this.musclePct,
       waterPct: data.waterPct.present ? data.waterPct.value : this.waterPct,
+      source: data.source.present ? data.source.value : this.source,
+      externalId: data.externalId.present
+          ? data.externalId.value
+          : this.externalId,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      isEvent: data.isEvent.present ? data.isEvent.value : this.isEvent,
+      eventLabel: data.eventLabel.present
+          ? data.eventLabel.value
+          : this.eventLabel,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -809,6 +1002,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
           ..write('bodyFatPct: $bodyFatPct, ')
           ..write('musclePct: $musclePct, ')
           ..write('waterPct: $waterPct, ')
+          ..write('source: $source, ')
+          ..write('externalId: $externalId, ')
+          ..write('profileId: $profileId, ')
+          ..write('isEvent: $isEvent, ')
+          ..write('eventLabel: $eventLabel, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -824,6 +1022,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
     bodyFatPct,
     musclePct,
     waterPct,
+    source,
+    externalId,
+    profileId,
+    isEvent,
+    eventLabel,
     createdAt,
     updatedAt,
   );
@@ -838,6 +1041,11 @@ class WeightEntry extends DataClass implements Insertable<WeightEntry> {
           other.bodyFatPct == this.bodyFatPct &&
           other.musclePct == this.musclePct &&
           other.waterPct == this.waterPct &&
+          other.source == this.source &&
+          other.externalId == this.externalId &&
+          other.profileId == this.profileId &&
+          other.isEvent == this.isEvent &&
+          other.eventLabel == this.eventLabel &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -850,6 +1058,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
   final Value<double?> bodyFatPct;
   final Value<double?> musclePct;
   final Value<double?> waterPct;
+  final Value<String?> source;
+  final Value<String?> externalId;
+  final Value<int?> profileId;
+  final Value<bool> isEvent;
+  final Value<String?> eventLabel;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const WeightEntriesCompanion({
@@ -860,6 +1073,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     this.bodyFatPct = const Value.absent(),
     this.musclePct = const Value.absent(),
     this.waterPct = const Value.absent(),
+    this.source = const Value.absent(),
+    this.externalId = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.isEvent = const Value.absent(),
+    this.eventLabel = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -871,6 +1089,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     this.bodyFatPct = const Value.absent(),
     this.musclePct = const Value.absent(),
     this.waterPct = const Value.absent(),
+    this.source = const Value.absent(),
+    this.externalId = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.isEvent = const Value.absent(),
+    this.eventLabel = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : measuredAt = Value(measuredAt),
@@ -883,6 +1106,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     Expression<double>? bodyFatPct,
     Expression<double>? musclePct,
     Expression<double>? waterPct,
+    Expression<String>? source,
+    Expression<String>? externalId,
+    Expression<int>? profileId,
+    Expression<bool>? isEvent,
+    Expression<String>? eventLabel,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -894,6 +1122,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
       if (bodyFatPct != null) 'body_fat_pct': bodyFatPct,
       if (musclePct != null) 'muscle_pct': musclePct,
       if (waterPct != null) 'water_pct': waterPct,
+      if (source != null) 'source': source,
+      if (externalId != null) 'external_id': externalId,
+      if (profileId != null) 'profile_id': profileId,
+      if (isEvent != null) 'is_event': isEvent,
+      if (eventLabel != null) 'event_label': eventLabel,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -907,6 +1140,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     Value<double?>? bodyFatPct,
     Value<double?>? musclePct,
     Value<double?>? waterPct,
+    Value<String?>? source,
+    Value<String?>? externalId,
+    Value<int?>? profileId,
+    Value<bool>? isEvent,
+    Value<String?>? eventLabel,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -918,6 +1156,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
       bodyFatPct: bodyFatPct ?? this.bodyFatPct,
       musclePct: musclePct ?? this.musclePct,
       waterPct: waterPct ?? this.waterPct,
+      source: source ?? this.source,
+      externalId: externalId ?? this.externalId,
+      profileId: profileId ?? this.profileId,
+      isEvent: isEvent ?? this.isEvent,
+      eventLabel: eventLabel ?? this.eventLabel,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -947,6 +1190,21 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
     if (waterPct.present) {
       map['water_pct'] = Variable<double>(waterPct.value);
     }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (externalId.present) {
+      map['external_id'] = Variable<String>(externalId.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
+    }
+    if (isEvent.present) {
+      map['is_event'] = Variable<bool>(isEvent.value);
+    }
+    if (eventLabel.present) {
+      map['event_label'] = Variable<String>(eventLabel.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -966,6 +1224,11 @@ class WeightEntriesCompanion extends UpdateCompanion<WeightEntry> {
           ..write('bodyFatPct: $bodyFatPct, ')
           ..write('musclePct: $musclePct, ')
           ..write('waterPct: $waterPct, ')
+          ..write('source: $source, ')
+          ..write('externalId: $externalId, ')
+          ..write('profileId: $profileId, ')
+          ..write('isEvent: $isEvent, ')
+          ..write('eventLabel: $eventLabel, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1093,6 +1356,50 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _onboardingDoneMeta = const VerificationMeta(
+    'onboardingDone',
+  );
+  @override
+  late final GeneratedColumn<bool> onboardingDone = GeneratedColumn<bool>(
+    'onboarding_done',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("onboarding_done" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _heroShowsTrendMeta = const VerificationMeta(
+    'heroShowsTrend',
+  );
+  @override
+  late final GeneratedColumn<bool> heroShowsTrend = GeneratedColumn<bool>(
+    'hero_shows_trend',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hero_shows_trend" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _showEnergyEstimateMeta =
+      const VerificationMeta('showEnergyEstimate');
+  @override
+  late final GeneratedColumn<bool> showEnergyEstimate = GeneratedColumn<bool>(
+    'show_energy_estimate',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("show_energy_estimate" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1104,6 +1411,9 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
     palette,
     checkUpdates,
     dismissedUpdateVersion,
+    onboardingDone,
+    heroShowsTrend,
+    showEnergyEstimate,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1180,6 +1490,33 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         ),
       );
     }
+    if (data.containsKey('onboarding_done')) {
+      context.handle(
+        _onboardingDoneMeta,
+        onboardingDone.isAcceptableOrUnknown(
+          data['onboarding_done']!,
+          _onboardingDoneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('hero_shows_trend')) {
+      context.handle(
+        _heroShowsTrendMeta,
+        heroShowsTrend.isAcceptableOrUnknown(
+          data['hero_shows_trend']!,
+          _heroShowsTrendMeta,
+        ),
+      );
+    }
+    if (data.containsKey('show_energy_estimate')) {
+      context.handle(
+        _showEnergyEstimateMeta,
+        showEnergyEstimate.isAcceptableOrUnknown(
+          data['show_energy_estimate']!,
+          _showEnergyEstimateMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1225,6 +1562,18 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
         DriftSqlType.string,
         data['${effectivePrefix}dismissed_update_version'],
       ),
+      onboardingDone: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}onboarding_done'],
+      )!,
+      heroShowsTrend: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hero_shows_trend'],
+      )!,
+      showEnergyEstimate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}show_energy_estimate'],
+      )!,
     );
   }
 
@@ -1258,6 +1607,20 @@ class Setting extends DataClass implements Insertable<Setting> {
   /// The release tag the user dismissed from the update banner (e.g. 'v1.2.0'),
   /// so a declined update isn't shown again. Null until something is dismissed.
   final String? dismissedUpdateVersion;
+
+  /// True once first-run onboarding has been completed (or skipped). Gates the
+  /// onboarding flow so it shows only once. v7.
+  final bool onboardingDone;
+
+  /// When true (default) the Today hero leads with the smoothed *trend* weight
+  /// and demotes the raw reading to a caption; when false it leads with the raw
+  /// latest reading. The trend is the honest, less-noisy number (RESEARCH.md
+  /// §4). v7.
+  final bool heroShowsTrend;
+
+  /// Opt-in: show the estimated energy-balance insight (kcal/day from the
+  /// weight trend). Off by default; always framed as an estimate. v7.
+  final bool showEnergyEstimate;
   const Setting({
     required this.id,
     required this.weightUnit,
@@ -1268,6 +1631,9 @@ class Setting extends DataClass implements Insertable<Setting> {
     required this.palette,
     required this.checkUpdates,
     this.dismissedUpdateVersion,
+    required this.onboardingDone,
+    required this.heroShowsTrend,
+    required this.showEnergyEstimate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1285,6 +1651,9 @@ class Setting extends DataClass implements Insertable<Setting> {
         dismissedUpdateVersion,
       );
     }
+    map['onboarding_done'] = Variable<bool>(onboardingDone);
+    map['hero_shows_trend'] = Variable<bool>(heroShowsTrend);
+    map['show_energy_estimate'] = Variable<bool>(showEnergyEstimate);
     return map;
   }
 
@@ -1301,6 +1670,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       dismissedUpdateVersion: dismissedUpdateVersion == null && nullToAbsent
           ? const Value.absent()
           : Value(dismissedUpdateVersion),
+      onboardingDone: Value(onboardingDone),
+      heroShowsTrend: Value(heroShowsTrend),
+      showEnergyEstimate: Value(showEnergyEstimate),
     );
   }
 
@@ -1321,6 +1693,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       dismissedUpdateVersion: serializer.fromJson<String?>(
         json['dismissedUpdateVersion'],
       ),
+      onboardingDone: serializer.fromJson<bool>(json['onboardingDone']),
+      heroShowsTrend: serializer.fromJson<bool>(json['heroShowsTrend']),
+      showEnergyEstimate: serializer.fromJson<bool>(json['showEnergyEstimate']),
     );
   }
   @override
@@ -1338,6 +1713,9 @@ class Setting extends DataClass implements Insertable<Setting> {
       'dismissedUpdateVersion': serializer.toJson<String?>(
         dismissedUpdateVersion,
       ),
+      'onboardingDone': serializer.toJson<bool>(onboardingDone),
+      'heroShowsTrend': serializer.toJson<bool>(heroShowsTrend),
+      'showEnergyEstimate': serializer.toJson<bool>(showEnergyEstimate),
     };
   }
 
@@ -1351,6 +1729,9 @@ class Setting extends DataClass implements Insertable<Setting> {
     String? palette,
     bool? checkUpdates,
     Value<String?> dismissedUpdateVersion = const Value.absent(),
+    bool? onboardingDone,
+    bool? heroShowsTrend,
+    bool? showEnergyEstimate,
   }) => Setting(
     id: id ?? this.id,
     weightUnit: weightUnit ?? this.weightUnit,
@@ -1363,6 +1744,9 @@ class Setting extends DataClass implements Insertable<Setting> {
     dismissedUpdateVersion: dismissedUpdateVersion.present
         ? dismissedUpdateVersion.value
         : this.dismissedUpdateVersion,
+    onboardingDone: onboardingDone ?? this.onboardingDone,
+    heroShowsTrend: heroShowsTrend ?? this.heroShowsTrend,
+    showEnergyEstimate: showEnergyEstimate ?? this.showEnergyEstimate,
   );
   Setting copyWithCompanion(SettingsCompanion data) {
     return Setting(
@@ -1387,6 +1771,15 @@ class Setting extends DataClass implements Insertable<Setting> {
       dismissedUpdateVersion: data.dismissedUpdateVersion.present
           ? data.dismissedUpdateVersion.value
           : this.dismissedUpdateVersion,
+      onboardingDone: data.onboardingDone.present
+          ? data.onboardingDone.value
+          : this.onboardingDone,
+      heroShowsTrend: data.heroShowsTrend.present
+          ? data.heroShowsTrend.value
+          : this.heroShowsTrend,
+      showEnergyEstimate: data.showEnergyEstimate.present
+          ? data.showEnergyEstimate.value
+          : this.showEnergyEstimate,
     );
   }
 
@@ -1401,7 +1794,10 @@ class Setting extends DataClass implements Insertable<Setting> {
           ..write('showGoalLine: $showGoalLine, ')
           ..write('palette: $palette, ')
           ..write('checkUpdates: $checkUpdates, ')
-          ..write('dismissedUpdateVersion: $dismissedUpdateVersion')
+          ..write('dismissedUpdateVersion: $dismissedUpdateVersion, ')
+          ..write('onboardingDone: $onboardingDone, ')
+          ..write('heroShowsTrend: $heroShowsTrend, ')
+          ..write('showEnergyEstimate: $showEnergyEstimate')
           ..write(')'))
         .toString();
   }
@@ -1417,6 +1813,9 @@ class Setting extends DataClass implements Insertable<Setting> {
     palette,
     checkUpdates,
     dismissedUpdateVersion,
+    onboardingDone,
+    heroShowsTrend,
+    showEnergyEstimate,
   );
   @override
   bool operator ==(Object other) =>
@@ -1430,7 +1829,10 @@ class Setting extends DataClass implements Insertable<Setting> {
           other.showGoalLine == this.showGoalLine &&
           other.palette == this.palette &&
           other.checkUpdates == this.checkUpdates &&
-          other.dismissedUpdateVersion == this.dismissedUpdateVersion);
+          other.dismissedUpdateVersion == this.dismissedUpdateVersion &&
+          other.onboardingDone == this.onboardingDone &&
+          other.heroShowsTrend == this.heroShowsTrend &&
+          other.showEnergyEstimate == this.showEnergyEstimate);
 }
 
 class SettingsCompanion extends UpdateCompanion<Setting> {
@@ -1443,6 +1845,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
   final Value<String> palette;
   final Value<bool> checkUpdates;
   final Value<String?> dismissedUpdateVersion;
+  final Value<bool> onboardingDone;
+  final Value<bool> heroShowsTrend;
+  final Value<bool> showEnergyEstimate;
   const SettingsCompanion({
     this.id = const Value.absent(),
     this.weightUnit = const Value.absent(),
@@ -1453,6 +1858,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.palette = const Value.absent(),
     this.checkUpdates = const Value.absent(),
     this.dismissedUpdateVersion = const Value.absent(),
+    this.onboardingDone = const Value.absent(),
+    this.heroShowsTrend = const Value.absent(),
+    this.showEnergyEstimate = const Value.absent(),
   });
   SettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -1464,6 +1872,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     this.palette = const Value.absent(),
     this.checkUpdates = const Value.absent(),
     this.dismissedUpdateVersion = const Value.absent(),
+    this.onboardingDone = const Value.absent(),
+    this.heroShowsTrend = const Value.absent(),
+    this.showEnergyEstimate = const Value.absent(),
   });
   static Insertable<Setting> custom({
     Expression<int>? id,
@@ -1475,6 +1886,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Expression<String>? palette,
     Expression<bool>? checkUpdates,
     Expression<String>? dismissedUpdateVersion,
+    Expression<bool>? onboardingDone,
+    Expression<bool>? heroShowsTrend,
+    Expression<bool>? showEnergyEstimate,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1487,6 +1901,10 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       if (checkUpdates != null) 'check_updates': checkUpdates,
       if (dismissedUpdateVersion != null)
         'dismissed_update_version': dismissedUpdateVersion,
+      if (onboardingDone != null) 'onboarding_done': onboardingDone,
+      if (heroShowsTrend != null) 'hero_shows_trend': heroShowsTrend,
+      if (showEnergyEstimate != null)
+        'show_energy_estimate': showEnergyEstimate,
     });
   }
 
@@ -1500,6 +1918,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
     Value<String>? palette,
     Value<bool>? checkUpdates,
     Value<String?>? dismissedUpdateVersion,
+    Value<bool>? onboardingDone,
+    Value<bool>? heroShowsTrend,
+    Value<bool>? showEnergyEstimate,
   }) {
     return SettingsCompanion(
       id: id ?? this.id,
@@ -1512,6 +1933,9 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
       checkUpdates: checkUpdates ?? this.checkUpdates,
       dismissedUpdateVersion:
           dismissedUpdateVersion ?? this.dismissedUpdateVersion,
+      onboardingDone: onboardingDone ?? this.onboardingDone,
+      heroShowsTrend: heroShowsTrend ?? this.heroShowsTrend,
+      showEnergyEstimate: showEnergyEstimate ?? this.showEnergyEstimate,
     );
   }
 
@@ -1547,6 +1971,15 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
         dismissedUpdateVersion.value,
       );
     }
+    if (onboardingDone.present) {
+      map['onboarding_done'] = Variable<bool>(onboardingDone.value);
+    }
+    if (heroShowsTrend.present) {
+      map['hero_shows_trend'] = Variable<bool>(heroShowsTrend.value);
+    }
+    if (showEnergyEstimate.present) {
+      map['show_energy_estimate'] = Variable<bool>(showEnergyEstimate.value);
+    }
     return map;
   }
 
@@ -1561,7 +1994,10 @@ class SettingsCompanion extends UpdateCompanion<Setting> {
           ..write('showGoalLine: $showGoalLine, ')
           ..write('palette: $palette, ')
           ..write('checkUpdates: $checkUpdates, ')
-          ..write('dismissedUpdateVersion: $dismissedUpdateVersion')
+          ..write('dismissedUpdateVersion: $dismissedUpdateVersion, ')
+          ..write('onboardingDone: $onboardingDone, ')
+          ..write('heroShowsTrend: $heroShowsTrend, ')
+          ..write('showEnergyEstimate: $showEnergyEstimate')
           ..write(')'))
         .toString();
   }
@@ -1626,6 +2062,37 @@ class $BodyMeasurementsTable extends BodyMeasurements
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _externalIdMeta = const VerificationMeta(
+    'externalId',
+  );
+  @override
+  late final GeneratedColumn<String> externalId = GeneratedColumn<String>(
+    'external_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<int> profileId = GeneratedColumn<int>(
+    'profile_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -1657,6 +2124,9 @@ class $BodyMeasurementsTable extends BodyMeasurements
     type,
     valueCm,
     note,
+    source,
+    externalId,
+    profileId,
     createdAt,
     updatedAt,
   ];
@@ -1705,6 +2175,24 @@ class $BodyMeasurementsTable extends BodyMeasurements
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('external_id')) {
+      context.handle(
+        _externalIdMeta,
+        externalId.isAcceptableOrUnknown(data['external_id']!, _externalIdMeta),
+      );
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -1746,6 +2234,18 @@ class $BodyMeasurementsTable extends BodyMeasurements
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      ),
+      externalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}external_id'],
+      ),
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}profile_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -1775,6 +2275,14 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
   /// Canonical measurement in centimetres.
   final double valueCm;
   final String? note;
+
+  /// Provenance + source-native id, mirroring [WeightEntries] for idempotent
+  /// re-import. Null for manual entries. v7.
+  final String? source;
+  final String? externalId;
+
+  /// Owning profile (logically references [Profiles.id]); null = default. v7.
+  final int? profileId;
   final DateTime createdAt;
   final DateTime updatedAt;
   const BodyMeasurement({
@@ -1783,6 +2291,9 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
     required this.type,
     required this.valueCm,
     this.note,
+    this.source,
+    this.externalId,
+    this.profileId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1796,6 +2307,15 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || source != null) {
+      map['source'] = Variable<String>(source);
+    }
+    if (!nullToAbsent || externalId != null) {
+      map['external_id'] = Variable<String>(externalId);
+    }
+    if (!nullToAbsent || profileId != null) {
+      map['profile_id'] = Variable<int>(profileId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1808,6 +2328,15 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
       type: Value(type),
       valueCm: Value(valueCm),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      source: source == null && nullToAbsent
+          ? const Value.absent()
+          : Value(source),
+      externalId: externalId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(externalId),
+      profileId: profileId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(profileId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -1824,6 +2353,9 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
       type: serializer.fromJson<String>(json['type']),
       valueCm: serializer.fromJson<double>(json['valueCm']),
       note: serializer.fromJson<String?>(json['note']),
+      source: serializer.fromJson<String?>(json['source']),
+      externalId: serializer.fromJson<String?>(json['externalId']),
+      profileId: serializer.fromJson<int?>(json['profileId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1837,6 +2369,9 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
       'type': serializer.toJson<String>(type),
       'valueCm': serializer.toJson<double>(valueCm),
       'note': serializer.toJson<String?>(note),
+      'source': serializer.toJson<String?>(source),
+      'externalId': serializer.toJson<String?>(externalId),
+      'profileId': serializer.toJson<int?>(profileId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1848,6 +2383,9 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
     String? type,
     double? valueCm,
     Value<String?> note = const Value.absent(),
+    Value<String?> source = const Value.absent(),
+    Value<String?> externalId = const Value.absent(),
+    Value<int?> profileId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => BodyMeasurement(
@@ -1856,6 +2394,9 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
     type: type ?? this.type,
     valueCm: valueCm ?? this.valueCm,
     note: note.present ? note.value : this.note,
+    source: source.present ? source.value : this.source,
+    externalId: externalId.present ? externalId.value : this.externalId,
+    profileId: profileId.present ? profileId.value : this.profileId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -1868,6 +2409,11 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
       type: data.type.present ? data.type.value : this.type,
       valueCm: data.valueCm.present ? data.valueCm.value : this.valueCm,
       note: data.note.present ? data.note.value : this.note,
+      source: data.source.present ? data.source.value : this.source,
+      externalId: data.externalId.present
+          ? data.externalId.value
+          : this.externalId,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -1881,6 +2427,9 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
           ..write('type: $type, ')
           ..write('valueCm: $valueCm, ')
           ..write('note: $note, ')
+          ..write('source: $source, ')
+          ..write('externalId: $externalId, ')
+          ..write('profileId: $profileId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1888,8 +2437,18 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, measuredAt, type, valueCm, note, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    measuredAt,
+    type,
+    valueCm,
+    note,
+    source,
+    externalId,
+    profileId,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1899,6 +2458,9 @@ class BodyMeasurement extends DataClass implements Insertable<BodyMeasurement> {
           other.type == this.type &&
           other.valueCm == this.valueCm &&
           other.note == this.note &&
+          other.source == this.source &&
+          other.externalId == this.externalId &&
+          other.profileId == this.profileId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -1909,6 +2471,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
   final Value<String> type;
   final Value<double> valueCm;
   final Value<String?> note;
+  final Value<String?> source;
+  final Value<String?> externalId;
+  final Value<int?> profileId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   const BodyMeasurementsCompanion({
@@ -1917,6 +2482,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
     this.type = const Value.absent(),
     this.valueCm = const Value.absent(),
     this.note = const Value.absent(),
+    this.source = const Value.absent(),
+    this.externalId = const Value.absent(),
+    this.profileId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1926,6 +2494,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
     required String type,
     required double valueCm,
     this.note = const Value.absent(),
+    this.source = const Value.absent(),
+    this.externalId = const Value.absent(),
+    this.profileId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : measuredAt = Value(measuredAt),
@@ -1937,6 +2508,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
     Expression<String>? type,
     Expression<double>? valueCm,
     Expression<String>? note,
+    Expression<String>? source,
+    Expression<String>? externalId,
+    Expression<int>? profileId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -1946,6 +2520,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
       if (type != null) 'type': type,
       if (valueCm != null) 'value_cm': valueCm,
       if (note != null) 'note': note,
+      if (source != null) 'source': source,
+      if (externalId != null) 'external_id': externalId,
+      if (profileId != null) 'profile_id': profileId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1957,6 +2534,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
     Value<String>? type,
     Value<double>? valueCm,
     Value<String?>? note,
+    Value<String?>? source,
+    Value<String?>? externalId,
+    Value<int?>? profileId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
   }) {
@@ -1966,6 +2546,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
       type: type ?? this.type,
       valueCm: valueCm ?? this.valueCm,
       note: note ?? this.note,
+      source: source ?? this.source,
+      externalId: externalId ?? this.externalId,
+      profileId: profileId ?? this.profileId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1989,6 +2572,15 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (externalId.present) {
+      map['external_id'] = Variable<String>(externalId.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<int>(profileId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -2006,6 +2598,9 @@ class BodyMeasurementsCompanion extends UpdateCompanion<BodyMeasurement> {
           ..write('type: $type, ')
           ..write('valueCm: $valueCm, ')
           ..write('note: $note, ')
+          ..write('source: $source, ')
+          ..write('externalId: $externalId, ')
+          ..write('profileId: $profileId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -2260,6 +2855,11 @@ typedef $$WeightEntriesTableCreateCompanionBuilder =
       Value<double?> bodyFatPct,
       Value<double?> musclePct,
       Value<double?> waterPct,
+      Value<String?> source,
+      Value<String?> externalId,
+      Value<int?> profileId,
+      Value<bool> isEvent,
+      Value<String?> eventLabel,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -2272,6 +2872,11 @@ typedef $$WeightEntriesTableUpdateCompanionBuilder =
       Value<double?> bodyFatPct,
       Value<double?> musclePct,
       Value<double?> waterPct,
+      Value<String?> source,
+      Value<String?> externalId,
+      Value<int?> profileId,
+      Value<bool> isEvent,
+      Value<String?> eventLabel,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -2317,6 +2922,31 @@ class $$WeightEntriesTableFilterComposer
 
   ColumnFilters<double> get waterPct => $composableBuilder(
     column: $table.waterPct,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isEvent => $composableBuilder(
+    column: $table.isEvent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eventLabel => $composableBuilder(
+    column: $table.eventLabel,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2375,6 +3005,31 @@ class $$WeightEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isEvent => $composableBuilder(
+    column: $table.isEvent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eventLabel => $composableBuilder(
+    column: $table.eventLabel,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -2419,6 +3074,25 @@ class $$WeightEntriesTableAnnotationComposer
 
   GeneratedColumn<double> get waterPct =>
       $composableBuilder(column: $table.waterPct, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isEvent =>
+      $composableBuilder(column: $table.isEvent, builder: (column) => column);
+
+  GeneratedColumn<String> get eventLabel => $composableBuilder(
+    column: $table.eventLabel,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -2465,6 +3139,11 @@ class $$WeightEntriesTableTableManager
                 Value<double?> bodyFatPct = const Value.absent(),
                 Value<double?> musclePct = const Value.absent(),
                 Value<double?> waterPct = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
+                Value<int?> profileId = const Value.absent(),
+                Value<bool> isEvent = const Value.absent(),
+                Value<String?> eventLabel = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WeightEntriesCompanion(
@@ -2475,6 +3154,11 @@ class $$WeightEntriesTableTableManager
                 bodyFatPct: bodyFatPct,
                 musclePct: musclePct,
                 waterPct: waterPct,
+                source: source,
+                externalId: externalId,
+                profileId: profileId,
+                isEvent: isEvent,
+                eventLabel: eventLabel,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -2487,6 +3171,11 @@ class $$WeightEntriesTableTableManager
                 Value<double?> bodyFatPct = const Value.absent(),
                 Value<double?> musclePct = const Value.absent(),
                 Value<double?> waterPct = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
+                Value<int?> profileId = const Value.absent(),
+                Value<bool> isEvent = const Value.absent(),
+                Value<String?> eventLabel = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => WeightEntriesCompanion.insert(
@@ -2497,6 +3186,11 @@ class $$WeightEntriesTableTableManager
                 bodyFatPct: bodyFatPct,
                 musclePct: musclePct,
                 waterPct: waterPct,
+                source: source,
+                externalId: externalId,
+                profileId: profileId,
+                isEvent: isEvent,
+                eventLabel: eventLabel,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -2536,6 +3230,9 @@ typedef $$SettingsTableCreateCompanionBuilder =
       Value<String> palette,
       Value<bool> checkUpdates,
       Value<String?> dismissedUpdateVersion,
+      Value<bool> onboardingDone,
+      Value<bool> heroShowsTrend,
+      Value<bool> showEnergyEstimate,
     });
 typedef $$SettingsTableUpdateCompanionBuilder =
     SettingsCompanion Function({
@@ -2548,6 +3245,9 @@ typedef $$SettingsTableUpdateCompanionBuilder =
       Value<String> palette,
       Value<bool> checkUpdates,
       Value<String?> dismissedUpdateVersion,
+      Value<bool> onboardingDone,
+      Value<bool> heroShowsTrend,
+      Value<bool> showEnergyEstimate,
     });
 
 class $$SettingsTableFilterComposer
@@ -2601,6 +3301,21 @@ class $$SettingsTableFilterComposer
 
   ColumnFilters<String> get dismissedUpdateVersion => $composableBuilder(
     column: $table.dismissedUpdateVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get onboardingDone => $composableBuilder(
+    column: $table.onboardingDone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get heroShowsTrend => $composableBuilder(
+    column: $table.heroShowsTrend,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get showEnergyEstimate => $composableBuilder(
+    column: $table.showEnergyEstimate,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2658,6 +3373,21 @@ class $$SettingsTableOrderingComposer
     column: $table.dismissedUpdateVersion,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get onboardingDone => $composableBuilder(
+    column: $table.onboardingDone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get heroShowsTrend => $composableBuilder(
+    column: $table.heroShowsTrend,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get showEnergyEstimate => $composableBuilder(
+    column: $table.showEnergyEstimate,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsTableAnnotationComposer
@@ -2707,6 +3437,21 @@ class $$SettingsTableAnnotationComposer
     column: $table.dismissedUpdateVersion,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get onboardingDone => $composableBuilder(
+    column: $table.onboardingDone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get heroShowsTrend => $composableBuilder(
+    column: $table.heroShowsTrend,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get showEnergyEstimate => $composableBuilder(
+    column: $table.showEnergyEstimate,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsTableTableManager
@@ -2746,6 +3491,9 @@ class $$SettingsTableTableManager
                 Value<String> palette = const Value.absent(),
                 Value<bool> checkUpdates = const Value.absent(),
                 Value<String?> dismissedUpdateVersion = const Value.absent(),
+                Value<bool> onboardingDone = const Value.absent(),
+                Value<bool> heroShowsTrend = const Value.absent(),
+                Value<bool> showEnergyEstimate = const Value.absent(),
               }) => SettingsCompanion(
                 id: id,
                 weightUnit: weightUnit,
@@ -2756,6 +3504,9 @@ class $$SettingsTableTableManager
                 palette: palette,
                 checkUpdates: checkUpdates,
                 dismissedUpdateVersion: dismissedUpdateVersion,
+                onboardingDone: onboardingDone,
+                heroShowsTrend: heroShowsTrend,
+                showEnergyEstimate: showEnergyEstimate,
               ),
           createCompanionCallback:
               ({
@@ -2768,6 +3519,9 @@ class $$SettingsTableTableManager
                 Value<String> palette = const Value.absent(),
                 Value<bool> checkUpdates = const Value.absent(),
                 Value<String?> dismissedUpdateVersion = const Value.absent(),
+                Value<bool> onboardingDone = const Value.absent(),
+                Value<bool> heroShowsTrend = const Value.absent(),
+                Value<bool> showEnergyEstimate = const Value.absent(),
               }) => SettingsCompanion.insert(
                 id: id,
                 weightUnit: weightUnit,
@@ -2778,6 +3532,9 @@ class $$SettingsTableTableManager
                 palette: palette,
                 checkUpdates: checkUpdates,
                 dismissedUpdateVersion: dismissedUpdateVersion,
+                onboardingDone: onboardingDone,
+                heroShowsTrend: heroShowsTrend,
+                showEnergyEstimate: showEnergyEstimate,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -2808,6 +3565,9 @@ typedef $$BodyMeasurementsTableCreateCompanionBuilder =
       required String type,
       required double valueCm,
       Value<String?> note,
+      Value<String?> source,
+      Value<String?> externalId,
+      Value<int?> profileId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -2818,6 +3578,9 @@ typedef $$BodyMeasurementsTableUpdateCompanionBuilder =
       Value<String> type,
       Value<double> valueCm,
       Value<String?> note,
+      Value<String?> source,
+      Value<String?> externalId,
+      Value<int?> profileId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
     });
@@ -2853,6 +3616,21 @@ class $$BodyMeasurementsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get profileId => $composableBuilder(
+    column: $table.profileId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2901,6 +3679,21 @@ class $$BodyMeasurementsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -2937,6 +3730,17 @@ class $$BodyMeasurementsTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get externalId => $composableBuilder(
+    column: $table.externalId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -2987,6 +3791,9 @@ class $$BodyMeasurementsTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<double> valueCm = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
+                Value<int?> profileId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => BodyMeasurementsCompanion(
@@ -2995,6 +3802,9 @@ class $$BodyMeasurementsTableTableManager
                 type: type,
                 valueCm: valueCm,
                 note: note,
+                source: source,
+                externalId: externalId,
+                profileId: profileId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3005,6 +3815,9 @@ class $$BodyMeasurementsTableTableManager
                 required String type,
                 required double valueCm,
                 Value<String?> note = const Value.absent(),
+                Value<String?> source = const Value.absent(),
+                Value<String?> externalId = const Value.absent(),
+                Value<int?> profileId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
               }) => BodyMeasurementsCompanion.insert(
@@ -3013,6 +3826,9 @@ class $$BodyMeasurementsTableTableManager
                 type: type,
                 valueCm: valueCm,
                 note: note,
+                source: source,
+                externalId: externalId,
+                profileId: profileId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

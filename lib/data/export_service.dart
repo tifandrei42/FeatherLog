@@ -10,8 +10,12 @@ import 'database.dart';
 class ExportService {
   const ExportService();
 
-  /// Export schema version (bumped when the export shape changes). v2 adds the
-  /// optional body-composition fields; v1 files still import.
+  /// Export schema version (bumped when the export shape *breaks* compatibility).
+  /// v2 added the optional body-composition fields; v1 files still import. The
+  /// v7 provenance/event fields (source, external_id, profile_id, is_event,
+  /// event_label) are written as additional *optional* keys without bumping the
+  /// version: older importers ignore unknown keys, and the v3 number stays
+  /// reserved for the future ZIP+photos container (DATA_MODEL.md §7).
   static const schemaVersion = 2;
 
   /// ISO date (yyyy-MM-dd) of a timestamp, for the CSV convenience column.
@@ -28,7 +32,9 @@ class ExportService {
     required Setting? settings,
     required List<WeightEntry> entries,
     required DateTime exportedAt,
-    List<BodyMeasurement> measurements = const [],
+    // Required (not defaulted) so a caller can't silently omit measurements and
+    // produce a backup that wipes them on restore (every caller must decide).
+    required List<BodyMeasurement> measurements,
   }) {
     final map = {
       'schema_version': schemaVersion,
@@ -53,6 +59,12 @@ class ExportService {
             'body_fat_pct': e.bodyFatPct,
             'muscle_pct': e.musclePct,
             'water_pct': e.waterPct,
+            // v7 provenance/event fields (optional; null/false for app entries).
+            'source': e.source,
+            'external_id': e.externalId,
+            'profile_id': e.profileId,
+            'is_event': e.isEvent,
+            'event_label': e.eventLabel,
           },
       ],
       'measurements': [
@@ -62,6 +74,10 @@ class ExportService {
             'type': m.type,
             'value_cm': m.valueCm,
             'note': m.note,
+            // v7 provenance fields (optional).
+            'source': m.source,
+            'external_id': m.externalId,
+            'profile_id': m.profileId,
           },
       ],
     };

@@ -65,6 +65,12 @@ class WeightEntryDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Updates an existing reading by id (used by edit). Bumps `updatedAt`.
+  ///
+  /// Uses `write()` (a partial update), NOT `replace()`: replace() resets every
+  /// column absent from the companion to its default/null, which would silently
+  /// wipe the v7 provenance/event fields (source, externalId, profileId,
+  /// isEvent, eventLabel) on every edit — breaking import idempotency and event
+  /// flags. write() leaves absent columns untouched.
   Future<bool> updateReading({
     required int id,
     required DateTime measuredAt,
@@ -73,19 +79,20 @@ class WeightEntryDao extends DatabaseAccessor<AppDatabase>
     double? bodyFatPct,
     double? musclePct,
     double? waterPct,
-  }) {
-    return update(weightEntries).replace(
-      WeightEntriesCompanion(
-        id: Value(id),
-        measuredAt: Value(measuredAt),
-        weightKg: Value(weightKg),
-        note: Value(note),
-        bodyFatPct: Value(bodyFatPct),
-        musclePct: Value(musclePct),
-        waterPct: Value(waterPct),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  }) async {
+    final count = await (update(weightEntries)..where((t) => t.id.equals(id)))
+        .write(
+          WeightEntriesCompanion(
+            measuredAt: Value(measuredAt),
+            weightKg: Value(weightKg),
+            note: Value(note),
+            bodyFatPct: Value(bodyFatPct),
+            musclePct: Value(musclePct),
+            waterPct: Value(waterPct),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+    return count > 0;
   }
 
   /// Deletes a single reading by id. Returns the number of rows removed.

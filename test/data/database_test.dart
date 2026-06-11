@@ -102,5 +102,72 @@ void main() {
       expect(s.showMovingAvg, isTrue);
       expect(s.showGoalLine, isTrue);
     });
+
+    test(
+      'v7 flag defaults: onboarding off, hero shows trend, energy off',
+      () async {
+        final id = await db.into(db.settings).insert(const SettingsCompanion());
+        final s = await (db.select(
+          db.settings,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(s.onboardingDone, isFalse);
+        expect(s.heroShowsTrend, isTrue);
+        expect(s.showEnergyEstimate, isFalse);
+      },
+    );
+  });
+
+  group('v7 provenance + indexes', () {
+    test('new entry columns default to null / false', () async {
+      final id = await db
+          .into(db.weightEntries)
+          .insert(
+            WeightEntriesCompanion.insert(
+              measuredAt: DateTime(2026, 6, 1, 8),
+              weightKg: 80.0,
+            ),
+          );
+      final row = await (db.select(
+        db.weightEntries,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(row.source, isNull);
+      expect(row.externalId, isNull);
+      expect(row.profileId, isNull);
+      expect(row.isEvent, isFalse);
+      expect(row.eventLabel, isNull);
+    });
+
+    test('(source, external_id) is unique — re-import is idempotent', () async {
+      Future<void> insertImported() => db
+          .into(db.weightEntries)
+          .insert(
+            WeightEntriesCompanion.insert(
+              measuredAt: DateTime(2026, 6, 1, 8),
+              weightKg: 80.0,
+              source: const Value('aktibmi'),
+              externalId: const Value('row-7'),
+            ),
+          );
+      await insertImported();
+      // Same (source, external_id) → unique-constraint violation.
+      await expectLater(insertImported(), throwsA(isA<Exception>()));
+    });
+
+    test(
+      'null source/external_id rows never collide (NULLs distinct)',
+      () async {
+        Future<void> insertManual() => db
+            .into(db.weightEntries)
+            .insert(
+              WeightEntriesCompanion.insert(
+                measuredAt: DateTime(2026, 6, 1, 8),
+                weightKg: 80.0,
+              ),
+            );
+        await insertManual();
+        await insertManual(); // both kept despite (null, null) being "equal-ish"
+        expect(await db.select(db.weightEntries).get(), hasLength(2));
+      },
+    );
   });
 }

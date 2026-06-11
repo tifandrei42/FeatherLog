@@ -170,3 +170,66 @@ Milestone? newestUnseen(List<Milestone> all, Set<String> seenKeys) {
   }
   return null;
 }
+
+/// A forward-looking target: the next un-reached waypoint on the way to the
+/// goal. Unlike [detectMilestones] (which celebrates the past), this gives the
+/// user a *near* thing to aim for instead of the full, possibly distant, goal.
+class NextMilestone {
+  const NextMilestone({
+    required this.percent,
+    required this.targetKg,
+    required this.toGoKg,
+    required this.progress,
+  });
+
+  /// The waypoint this target represents: 25, 50, 75, or 100 (the goal itself).
+  final int percent;
+
+  /// The canonical weight (kg) at this waypoint.
+  final double targetKg;
+
+  /// How far the latest weight still is from [targetKg], in kg (always ≥ 0).
+  final double toGoKg;
+
+  /// Overall fraction of the start→goal journey already covered, clamped 0–1.
+  final double progress;
+
+  /// True when the next thing to aim for is the goal itself (past 75%).
+  bool get isGoal => percent == 100;
+
+  /// A gentle headline for the waypoint.
+  String get label => switch (percent) {
+    50 => 'Halfway to goal',
+    100 => 'Goal',
+    _ => '$percent% to goal',
+  };
+}
+
+/// The next 25 / 50 / 75 / 100% waypoint toward [goalKg] from the series start.
+///
+/// Returns null when there's nothing to aim for: no data, no goal, a goal equal
+/// to the starting weight, or the goal already reached. Works in either
+/// direction (loss or gain) — the waypoints are fractions of the start→goal
+/// journey, so the same 25/50/75 checkpoints used by [detectMilestones] line up.
+NextMilestone? nextMilestone(List<DailyWeight> daily, {double? goalKg}) {
+  if (daily.isEmpty || goalKg == null) return null;
+  final start = daily.first.weightKg;
+  final current = daily.last.weightKg;
+  final journey = goalKg - start;
+  if (journey.abs() < 1e-9) return null; // goal == start: nothing to track
+
+  // Fraction of the journey covered. Moving the wrong way reads as 0 progress.
+  var progress = (current - start) / journey;
+  if (progress < 0) progress = 0;
+  if (progress >= 1 - 1e-9) return null; // already at/past the goal
+
+  const waypoints = [0.25, 0.5, 0.75, 1.0];
+  final nextFraction = waypoints.firstWhere((w) => w > progress + 1e-9);
+  final targetKg = start + nextFraction * journey;
+  return NextMilestone(
+    percent: (nextFraction * 100).round(),
+    targetKg: targetKg,
+    toGoKg: (targetKg - current).abs(),
+    progress: progress,
+  );
+}
