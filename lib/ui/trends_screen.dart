@@ -9,6 +9,7 @@ import '../domain/units.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
 import 'add_entry_sheet.dart';
+import 'history_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/bento_tile.dart';
 import 'widgets/day_detail_card.dart';
@@ -144,7 +145,21 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
                 goalKg: profile?.goalWeightKg,
               ),
               const SizedBox(height: 24),
-              const SectionHeader('Recent'),
+              SectionHeader(
+                'Recent',
+                // The full, month-grouped, editable log lives one tap away
+                // (not a 5th tab — the bottom nav stays at four).
+                trailing: entries.length > 10
+                    ? TextButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const HistoryScreen(),
+                          ),
+                        ),
+                        child: const Text('See all'),
+                      )
+                    : null,
+              ),
               // One inset card with hairline dividers so the readings read as a
               // single grouped object. entries is newest-first, so the "previous
               // log" for row i is the next (older) reading — looked up in the

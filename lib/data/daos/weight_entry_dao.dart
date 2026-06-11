@@ -100,6 +100,14 @@ class WeightEntryDao extends DatabaseAccessor<AppDatabase>
     return (delete(weightEntries)..where((t) => t.id.equals(id))).go();
   }
 
+  /// Re-inserts a previously deleted reading verbatim — same id, provenance,
+  /// composition, note, and timestamps — to support an "undo delete". Safe
+  /// because the id was just freed by [deleteEntry], so reusing it can't
+  /// collide; reusing it also keeps the row stable across the undo.
+  Future<void> restoreEntry(WeightEntry entry) {
+    return into(weightEntries).insert(entry.toCompanion(false));
+  }
+
   /// Bulk insert of readings, used by JSON import (Phase 5). Each reading is
   /// keyed by its timestamp, so distinct readings (including several on one
   /// day) are all preserved.

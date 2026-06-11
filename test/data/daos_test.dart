@@ -136,6 +136,47 @@ void main() {
       expect(await db.weightEntryDao.getAllEntries(), isEmpty);
     });
 
+    test('restoreEntry brings back a deleted row verbatim (undo)', () async {
+      // An imported, event-flagged reading with composition — every field must
+      // survive a delete→undo round-trip, including the id and provenance.
+      final id = await db
+          .into(db.weightEntries)
+          .insert(
+            WeightEntriesCompanion.insert(
+              measuredAt: DateTime(2026, 5, 28, 8),
+              weightKg: 80.0,
+              note: const Value('post-run'),
+              bodyFatPct: const Value(21.5),
+              source: const Value('aktibmi'),
+              externalId: const Value('row-7'),
+              profileId: const Value(2),
+              isEvent: const Value(true),
+              eventLabel: const Value('started gym'),
+            ),
+          );
+      final original = await (db.select(
+        db.weightEntries,
+      )..where((t) => t.id.equals(id))).getSingle();
+
+      await db.weightEntryDao.deleteEntry(id);
+      expect(await db.weightEntryDao.getAllEntries(), isEmpty);
+
+      await db.weightEntryDao.restoreEntry(original);
+      final all = await db.weightEntryDao.getAllEntries();
+      expect(all, hasLength(1));
+      final restored = all.single;
+      expect(restored.id, original.id); // same id (was just freed)
+      expect(restored.weightKg, 80.0);
+      expect(restored.note, 'post-run');
+      expect(restored.bodyFatPct, 21.5);
+      expect(restored.source, 'aktibmi');
+      expect(restored.externalId, 'row-7');
+      expect(restored.profileId, 2);
+      expect(restored.isEvent, isTrue);
+      expect(restored.eventLabel, 'started gym');
+      expect(restored.createdAt, original.createdAt);
+    });
+
     test('bulkInsert + deleteAllEntries (import path)', () async {
       await db.weightEntryDao.bulkInsert([
         WeightEntriesCompanion.insert(
