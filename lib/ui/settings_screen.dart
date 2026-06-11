@@ -19,6 +19,7 @@ import '../domain/version_compare.dart';
 import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
 import '../providers/update_provider.dart';
+import 'onboarding_screen.dart';
 import 'theme/tokens.dart';
 
 /// Grouped, calm settings list (UI_DESIGN.md §8.5, US-13.x): units, body
@@ -192,6 +193,16 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           _header(context, 'About'),
+          ListTile(
+            leading: const Icon(Icons.replay_outlined),
+            title: const Text('Run setup again'),
+            subtitle: const Text(
+              'Replay the welcome & set height, units, goal',
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const OnboardingScreen()),
+            ),
+          ),
           ListTile(
             title: const Text('FeatherLog'),
             subtitle: const Text(

@@ -9,8 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late AppDatabase db;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    // These tests cover the dashboard/logging flow, not first-run onboarding,
+    // so mark onboarding done up front — otherwise the root gate would show the
+    // onboarding screen on a fresh database.
+    await db.settingsDao.setOnboardingDone(true);
   });
 
   tearDown(() async {
