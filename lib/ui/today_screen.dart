@@ -386,14 +386,13 @@ class _NextMilestoneTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: milestone.progress,
-              minHeight: 8,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              color: accent,
-            ),
+          // Journey bar with 25/50/75% waypoint ticks, so one bar tells the
+          // whole story: overall progress plus where the next waypoint sits.
+          _MilestoneBar(
+            progress: milestone.progress,
+            fill: accent,
+            track: theme.colorScheme.surfaceContainerHighest,
+            tick: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
           ),
           const SizedBox(height: 6),
           Text(
@@ -406,6 +405,92 @@ class _NextMilestoneTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A slim progress bar with 25/50/75% waypoint ticks. The fill is overall
+/// journey progress; the ticks mark the milestone waypoints so crossing one
+/// reads as a visible step. Custom-painted so the ticks sit cleanly over both
+/// the filled and unfilled portions.
+class _MilestoneBar extends StatelessWidget {
+  const _MilestoneBar({
+    required this.progress,
+    required this.fill,
+    required this.track,
+    required this.tick,
+  });
+
+  /// Overall fraction of the journey covered, 0–1.
+  final double progress;
+  final Color fill;
+  final Color track;
+  final Color tick;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 8,
+      width: double.infinity,
+      child: CustomPaint(
+        painter: _MilestoneBarPainter(
+          progress: progress.clamp(0.0, 1.0),
+          fill: fill,
+          track: track,
+          tick: tick,
+        ),
+      ),
+    );
+  }
+}
+
+class _MilestoneBarPainter extends CustomPainter {
+  _MilestoneBarPainter({
+    required this.progress,
+    required this.fill,
+    required this.track,
+    required this.tick,
+  });
+
+  final double progress;
+  final Color fill;
+  final Color track;
+  final Color tick;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final radius = Radius.circular(size.height / 2);
+    // Track.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Offset.zero & size, radius),
+      Paint()..color = track,
+    );
+    // Fill.
+    final fillWidth = (size.width * progress).clamp(0.0, size.width);
+    if (fillWidth > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, fillWidth, size.height),
+          radius,
+        ),
+        Paint()..color = fill,
+      );
+    }
+    // 25 / 50 / 75% waypoint ticks.
+    final tickPaint = Paint()
+      ..color = tick
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    for (final f in const [0.25, 0.5, 0.75]) {
+      final x = size.width * f;
+      canvas.drawLine(Offset(x, 1.5), Offset(x, size.height - 1.5), tickPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MilestoneBarPainter old) =>
+      old.progress != progress ||
+      old.fill != fill ||
+      old.track != track ||
+      old.tick != tick;
 }
 
 /// The BMI tile: value + category and the band gauge (or a prompt to set

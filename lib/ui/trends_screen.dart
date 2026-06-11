@@ -104,6 +104,12 @@ class _TrendsScreenState extends ConsumerState<TrendsScreen> {
                           selectedDay: selected?.day,
                           goalKg: targetLineKg,
                           goalLabel: targetLineLabel,
+                          // The real goal as a faint marker (chart shows it only
+                          // when it's in range and differs from the milestone
+                          // line), so the goal stays visible near the finish.
+                          realGoalKg: showGoalLine
+                              ? profile?.goalWeightKg
+                              : null,
                           showMovingAverage: showMovingAvg,
                           onDaySelected: (d) =>
                               setState(() => _selectedDay = d?.day),

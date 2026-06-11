@@ -21,6 +21,7 @@ class WeightChart extends StatelessWidget {
     this.selectedDay,
     this.goalKg,
     this.goalLabel = 'Goal',
+    this.realGoalKg,
     this.showMovingAverage = false,
   });
 
@@ -42,6 +43,13 @@ class WeightChart extends StatelessWidget {
 
   /// Short label shown on the reference line (e.g. 'Next' or 'Goal').
   final String goalLabel;
+
+  /// Canonical weight (kg) of the *real* goal. Drawn as a faint, label-only
+  /// marker — but only when it falls inside the already-computed visible range
+  /// and isn't the same line as [goalKg]. The y-axis is never stretched to
+  /// include it, so a distant goal stays out of the way while a near one is
+  /// still shown. Null to hide.
+  final double? realGoalKg;
 
   /// Whether to overlay a 7-day moving-average line on top of the raw series.
   /// Only drawn when there are at least two points.
@@ -71,6 +79,9 @@ class WeightChart extends StatelessWidget {
         : const <FlSpot>[];
 
     final goalY = goalKg == null ? null : weightFromKg(goalKg!, unit);
+    final realGoalY = realGoalKg == null
+        ? null
+        : weightFromKg(realGoalKg!, unit);
 
     final ys = spots.map((s) => s.y).toList();
     // Include the goal in the range so its line is always visible.
@@ -80,6 +91,47 @@ class WeightChart extends StatelessWidget {
     // Pad the range so the line isn't glued to the top/bottom; guarantee a
     // non-zero span when all points are equal.
     final pad = ((maxY - minY) * 0.15).clamp(0.5, double.infinity);
+
+    // Reference lines: the next-milestone/goal target the caller passed in, plus
+    // — only when it actually falls inside the visible range and isn't the same
+    // line — a faint marker for the real goal, so the goal never silently
+    // disappears while the y-axis still hugs the recent data.
+    final visibleMin = minY - pad;
+    final visibleMax = maxY + pad;
+    final goalColor = _goalColor(theme);
+    final horizontalLines = <HorizontalLine>[
+      if (goalY != null)
+        HorizontalLine(
+          y: goalY,
+          color: goalColor,
+          strokeWidth: 2,
+          dashArray: const [6, 4],
+          label: HorizontalLineLabel(
+            show: true,
+            alignment: Alignment.topRight,
+            style: theme.textTheme.labelSmall?.copyWith(color: goalColor),
+            labelResolver: (_) => goalLabel,
+          ),
+        ),
+      if (realGoalY != null &&
+          (goalY == null || (realGoalY - goalY).abs() > 1e-6) &&
+          realGoalY >= visibleMin &&
+          realGoalY <= visibleMax)
+        HorizontalLine(
+          y: realGoalY,
+          color: goalColor.withValues(alpha: 0.4),
+          strokeWidth: 1,
+          dashArray: const [2, 5],
+          label: HorizontalLineLabel(
+            show: true,
+            alignment: Alignment.bottomRight,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: goalColor.withValues(alpha: 0.7),
+            ),
+            labelResolver: (_) => 'Goal',
+          ),
+        ),
+    ];
 
     final maxX = spots.last.x;
     // Aim for ~4 date labels across the axis.
@@ -148,26 +200,9 @@ class WeightChart extends StatelessWidget {
             ),
           ),
           borderData: FlBorderData(show: false),
-          extraLinesData: goalY == null
+          extraLinesData: horizontalLines.isEmpty
               ? const ExtraLinesData()
-              : ExtraLinesData(
-                  horizontalLines: [
-                    HorizontalLine(
-                      y: goalY,
-                      color: _goalColor(theme),
-                      strokeWidth: 2,
-                      dashArray: const [6, 4],
-                      label: HorizontalLineLabel(
-                        show: true,
-                        alignment: Alignment.topRight,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: _goalColor(theme),
-                        ),
-                        labelResolver: (_) => goalLabel,
-                      ),
-                    ),
-                  ],
-                ),
+              : ExtraLinesData(horizontalLines: horizontalLines),
           lineBarsData: [
             // Moving-average overlay, drawn beneath the raw line so it stays
             // visually subordinate: thinner, distinct shade, no dots, no fill.

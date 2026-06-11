@@ -57,4 +57,63 @@ void main() {
     final line = dataOf(tester).extraLinesData.horizontalLines.single;
     expect(line.label.labelResolver(line), 'Next');
   });
+
+  testWidgets('real goal in range adds a faint second line', (tester) async {
+    // data 80–81; next-milestone line 80.2 (in range), real goal 79.5 (within
+    // the padded visible range) → two lines, both reference lines visible.
+    await tester.pumpWidget(
+      host(
+        WeightChart(
+          daily: daily,
+          unit: WeightUnit.kg,
+          goalKg: 80.2,
+          goalLabel: 'Next',
+          realGoalKg: 79.5,
+        ),
+      ),
+    );
+    final lines = dataOf(tester).extraLinesData.horizontalLines;
+    expect(lines, hasLength(2));
+    expect(lines.any((l) => (l.y - 80.2).abs() < 1e-6), isTrue);
+    final goalLine = lines.firstWhere((l) => (l.y - 79.5).abs() < 1e-6);
+    expect(goalLine.label.labelResolver(goalLine), 'Goal');
+  });
+
+  testWidgets('real goal out of range → only the milestone line', (
+    tester,
+  ) async {
+    // Real goal 70.0 is far below the visible range (which hugs 80–81), so the
+    // y-axis isn't stretched and the faint goal marker is omitted.
+    await tester.pumpWidget(
+      host(
+        WeightChart(
+          daily: daily,
+          unit: WeightUnit.kg,
+          goalKg: 80.2,
+          goalLabel: 'Next',
+          realGoalKg: 70.0,
+        ),
+      ),
+    );
+    final lines = dataOf(tester).extraLinesData.horizontalLines;
+    expect(lines, hasLength(1));
+    expect(lines.single.y, 80.2);
+  });
+
+  testWidgets('real goal equal to the milestone line is not duplicated', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(
+        WeightChart(
+          daily: daily,
+          unit: WeightUnit.kg,
+          goalKg: 79.5,
+          goalLabel: 'Goal',
+          realGoalKg: 79.5,
+        ),
+      ),
+    );
+    expect(dataOf(tester).extraLinesData.horizontalLines, hasLength(1));
+  });
 }
