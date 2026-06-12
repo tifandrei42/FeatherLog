@@ -37,6 +37,9 @@ dependencies:
   flutter_riverpod: ^3.3.1
   drift: ^2.33.0
   drift_flutter: ^0.3.0
+  # Material You: derive the color scheme from the wallpaper on Android 12+.
+  # Opt-in (the "Dynamic" palette); falls back to the curated palettes elsewhere.
+  dynamic_color: ^1.7.0
   fl_chart: ^1.2.0
   intl: ^0.20.2
   path_provider: ^2.1.5

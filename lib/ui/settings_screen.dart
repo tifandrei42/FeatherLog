@@ -99,14 +99,19 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           _header(context, 'Appearance'),
-          ListTile(
-            title: const Text('Theme'),
-            trailing: SegmentedButton<String>(
+          const ListTile(
+            title: Text('Theme'),
+            subtitle: Text('System, light, dark, or pure black (AMOLED)'),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: SegmentedButton<String>(
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(value: 'system', label: Text('System')),
                 ButtonSegment(value: 'light', label: Text('Light')),
                 ButtonSegment(value: 'dark', label: Text('Dark')),
+                ButtonSegment(value: 'amoled', label: Text('Black')),
               ],
               selected: {settings?.theme ?? 'system'},
               onSelectionChanged: (s) => dao.settingsDao.updateTheme(s.first),
@@ -634,6 +639,24 @@ class _PaletteChooser extends StatelessWidget {
       spacing: 16,
       runSpacing: 12,
       children: [
+        // Material You: derives the accent from the wallpaper on Android 12+;
+        // falls back to the default palette where it isn't available.
+        _Swatch(
+          color: Theme.of(context).colorScheme.primary,
+          gradient: const SweepGradient(
+            colors: [
+              Color(0xFF5CC46E),
+              Color(0xFF2D7FF0),
+              Color(0xFF7C5CF0),
+              Color(0xFFE11D48),
+              Color(0xFFF4A52A),
+              Color(0xFF5CC46E),
+            ],
+          ),
+          label: 'Dynamic',
+          selected: selectedId == dynamicPaletteId,
+          onTap: () => onSelected(dynamicPaletteId),
+        ),
         for (final p in featherPalettes)
           _Swatch(
             color: p.primaryFor(brightness),
@@ -652,9 +675,14 @@ class _Swatch extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.gradient,
   });
 
   final Color color;
+
+  /// Optional gradient fill (used by the "Dynamic" swatch to signal it's
+  /// wallpaper-derived); when set it replaces the solid [color] fill.
+  final Gradient? gradient;
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -672,7 +700,8 @@ class _Swatch extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: color,
+              color: gradient == null ? color : null,
+              gradient: gradient,
               shape: BoxShape.circle,
               border: Border.all(
                 color: selected ? scheme.onSurface : Colors.transparent,

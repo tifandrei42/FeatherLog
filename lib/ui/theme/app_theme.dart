@@ -83,6 +83,39 @@ class AppTheme {
   static ThemeData dark([AccentPalette? palette]) =>
       _build(Brightness.dark, palette ?? featherPalettes.first);
 
+  /// A pure-black dark variant for OLED screens: true-black background and
+  /// surfaces, hairlines as faint white. Selected as the "Black" theme option.
+  static ThemeData amoled([AccentPalette? palette]) =>
+      _build(Brightness.dark, palette ?? featherPalettes.first, amoled: true);
+
+  /// Builds a theme from a wallpaper-derived [scheme] (Material You, Android
+  /// 12+). Keeps the app's editorial shape/typography and the [FeatherPalette]
+  /// extension (BMI bands stay calm and consistent); only the base colors come
+  /// from the system. [amoled] forces true-black surfaces in dark mode.
+  static ThemeData fromDynamic(ColorScheme scheme, {bool amoled = false}) {
+    final isDark = scheme.brightness == Brightness.dark;
+    final blackSurface = amoled && isDark;
+    final surface = blackSurface ? const Color(0xFF000000) : scheme.surface;
+    final hairline = isDark
+        ? Colors.white.withValues(alpha: amoled ? 0.12 : 0.10)
+        : Colors.black.withValues(alpha: 0.10);
+    final palette = FeatherPalette(
+      positive: isDark
+          ? FeatherColors.darkPositiveSage
+          : FeatherColors.lightPositiveSage,
+      sunrise: scheme.tertiary,
+      underweight: BmiBandColors.underweight,
+      normal: isDark ? BmiBandColors.normalDark : BmiBandColors.normalLight,
+      overweight: BmiBandColors.overweight,
+      obese: BmiBandColors.obese,
+    );
+    return _assemble(
+      scheme.copyWith(surface: surface, outlineVariant: hairline),
+      surface,
+      palette,
+    );
+  }
+
   /// Readable on-color for a fill: white on dark colors, near-black on light.
   static Color _on(Color c) =>
       ThemeData.estimateBrightnessForColor(c) == Brightness.dark
@@ -93,24 +126,30 @@ class AppTheme {
   static Color _soft(Color c, Color surface, bool isDark) =>
       Color.alphaBlend(c.withValues(alpha: isDark ? 0.22 : 0.15), surface);
 
-  static ThemeData _build(Brightness brightness, AccentPalette accentPalette) {
+  static ThemeData _build(
+    Brightness brightness,
+    AccentPalette accentPalette, {
+    bool amoled = false,
+  }) {
     final isDark = brightness == Brightness.dark;
 
-    final paper = isDark
-        ? FeatherColors.darkBgPaper
-        : FeatherColors.lightBgPaper;
-    final surface = isDark
-        ? FeatherColors.darkSurface
-        : FeatherColors.lightSurface;
+    // AMOLED overrides the neutrals with true black + faint-white hairlines;
+    // otherwise the per-theme paper/surface/hairline tokens apply.
+    final paper = amoled
+        ? const Color(0xFF000000)
+        : (isDark ? FeatherColors.darkBgPaper : FeatherColors.lightBgPaper);
+    final surface = amoled
+        ? const Color(0xFF0A0A0A)
+        : (isDark ? FeatherColors.darkSurface : FeatherColors.lightSurface);
+    final hairline = amoled
+        ? Colors.white.withValues(alpha: 0.12)
+        : (isDark ? FeatherColors.darkHairline : FeatherColors.lightHairline);
     final ink = isDark
         ? FeatherColors.darkInkStrong
         : FeatherColors.lightInkStrong;
     final muted = isDark
         ? FeatherColors.darkInkMuted
         : FeatherColors.lightInkMuted;
-    final hairline = isDark
-        ? FeatherColors.darkHairline
-        : FeatherColors.lightHairline;
     final primary = accentPalette.primaryFor(brightness);
     final secondary = isDark
         ? accentPalette.secondaryDark
@@ -153,6 +192,23 @@ class AppTheme {
       obese: BmiBandColors.obese,
     );
 
+    return _assemble(scheme, paper, palette);
+  }
+
+  /// Assembles the final [ThemeData] from a resolved [scheme], the scaffold
+  /// [paper] color, and the app's [palette] extension. Shared by the curated
+  /// palettes ([_build]) and Material You ([fromDynamic]) so the editorial
+  /// shape, flatness, and typography are identical across both.
+  static ThemeData _assemble(
+    ColorScheme scheme,
+    Color paper,
+    FeatherPalette palette,
+  ) {
+    final surface = scheme.surface;
+    final hairline = scheme.outlineVariant;
+    final ink = scheme.onSurface;
+    final muted = scheme.onSurfaceVariant;
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
@@ -180,7 +236,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
-        indicatorColor: primarySoft,
+        indicatorColor: scheme.primaryContainer,
         elevation: 0,
         labelTextStyle: WidgetStateProperty.all(
           TextStyle(
