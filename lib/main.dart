@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,21 +18,46 @@ class FeatherLogApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Theme mode follows the saved setting once available; defaults to system.
+    // 'amoled' is a dark variant (true black), so it maps to ThemeMode.dark and
+    // swaps the dark theme below.
     final settings = ref.watch(settingsProvider).value;
-    final themeMode = switch (settings?.theme) {
+    final themeChoice = settings?.theme ?? 'system';
+    final isAmoled = themeChoice == 'amoled';
+    final themeMode = switch (themeChoice) {
       'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
+      'dark' || 'amoled' => ThemeMode.dark,
       _ => ThemeMode.system,
     };
 
-    final palette = paletteById(settings?.palette);
-    return MaterialApp(
-      title: 'FeatherLog',
-      debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
-      theme: AppTheme.light(palette),
-      darkTheme: AppTheme.dark(palette),
-      home: const _RootGate(),
+    final paletteId = settings?.palette ?? featherPalettes.first.id;
+    final wantsDynamic = paletteId == dynamicPaletteId;
+    final palette = paletteById(paletteId); // 'dynamic' falls back to default
+
+    // DynamicColorBuilder supplies wallpaper-derived schemes on Android 12+
+    // (null elsewhere). We only use them when the user picked the Dynamic
+    // palette AND they're actually available — otherwise the curated palette
+    // applies, so behaviour is unchanged for everyone who hasn't opted in.
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) {
+        final useDynamic =
+            wantsDynamic && lightDynamic != null && darkDynamic != null;
+
+        final lightTheme = useDynamic
+            ? AppTheme.fromDynamic(lightDynamic.harmonized())
+            : AppTheme.light(palette);
+        final darkTheme = useDynamic
+            ? AppTheme.fromDynamic(darkDynamic.harmonized(), amoled: isAmoled)
+            : (isAmoled ? AppTheme.amoled(palette) : AppTheme.dark(palette));
+
+        return MaterialApp(
+          title: 'FeatherLog',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeMode,
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          home: const _RootGate(),
+        );
+      },
     );
   }
 }

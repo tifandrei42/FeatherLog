@@ -165,7 +165,24 @@ const List<AccentPalette> featherPalettes = [
     accentLight: Color(0xFFF59E0B),
     accentDark: Color(0xFFFBBF24),
   ),
+  // Near-monochrome slate with a single warm amber accent — for minimalists who
+  // want the data, not the color. The one pop of warmth stays on milestones.
+  AccentPalette(
+    id: 'slate',
+    label: 'Slate',
+    primaryLight: Color(0xFF475569), // slate-600
+    primaryDark: Color(0xFF94A3B8), // slate-400 (reads on dark)
+    secondaryLight: Color(0xFF64748B), // slate-500
+    secondaryDark: Color(0xFFAAB6C6),
+    accentLight: Color(0xFFF4A52A), // warm amber
+    accentDark: Color(0xFFF4B556),
+  ),
 ];
+
+/// Sentinel palette id for Material You (wallpaper-derived) color on Android
+/// 12+. Not a fixed [AccentPalette]; handled specially in the theme pipeline,
+/// and falls back to the default palette where dynamic color is unavailable.
+const String dynamicPaletteId = 'dynamic';
 
 /// Looks up a palette by [id], falling back to the default (first) palette.
 AccentPalette paletteById(String? id) => featherPalettes.firstWhere(
