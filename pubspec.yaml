@@ -70,21 +70,22 @@ dev_dependencies:
   sqlite3: ^3.3.2
 
 # App launcher icon generation (run: dart run flutter_launcher_icons).
-# Source is the hand-built feather mark (Documentation/featherlog-app-icons),
-# copied into assets/icon/. Generates Android, iOS and web icons from one image.
+# Source is the "Trendfeather" mark — a feather whose shaft is a descending
+# trend line ending in a data point — generated from the design-pack SVG by
+# test/tools/generate_trendfeather_icon.dart. Generates Android, iOS and web.
 flutter_launcher_icons:
-  image_path: "assets/icon/featherlog-1024.png"
+  image_path: "assets/icon/featherlog-trendfeather-1024.png"
   android: true
   ios: true
   remove_alpha_ios: true
   web:
     generate: true
-    image_path: "assets/icon/featherlog-1024.png"
-  # Android 13+ themed/adaptive icon: feather foreground over the brand gradient
-  # tone. The source already includes a rounded background, so this mainly helps
-  # on launchers that mask adaptive layers.
-  adaptive_icon_background: "#8AA6E0"
-  adaptive_icon_foreground: "assets/icon/featherlog-1024.png"
+    image_path: "assets/icon/featherlog-trendfeather-1024.png"
+  # Android 8+ adaptive icon: the brand gradient as the background layer and the
+  # feather mark (on transparent) as the foreground, so launchers can mask and
+  # parallax the two independently.
+  adaptive_icon_background: "assets/icon/featherlog-trendfeather-bg-1024.png"
+  adaptive_icon_foreground: "assets/icon/featherlog-trendfeather-fg-1024.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
