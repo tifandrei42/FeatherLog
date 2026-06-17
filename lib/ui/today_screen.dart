@@ -15,6 +15,7 @@ import '../providers/data_providers.dart';
 import '../providers/database_provider.dart';
 import '../providers/update_provider.dart';
 import 'app_shell.dart';
+import 'motion.dart';
 import 'theme/app_theme.dart';
 import 'theme/tokens.dart';
 import 'widgets/bento_tile.dart';
@@ -216,7 +217,10 @@ class _HeroTile extends StatelessWidget {
           // Tabular figures keep the big number from jittering as it counts.
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: bigValue),
-            duration: const Duration(milliseconds: 650),
+            duration: motionDuration(
+              context,
+              const Duration(milliseconds: 650),
+            ),
             curve: Curves.easeOutCubic,
             builder: (context, value, _) => Text.rich(
               TextSpan(
