@@ -29,8 +29,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "io.github.tifandrei42.featherlog"
+        // Public, permanent Play/package identity (intentionally brand-namespaced,
+        // not tied to a personal GitHub handle). Kept separate from `namespace`
+        // above, which is an internal-only code identifier (R/BuildConfig).
+        applicationId = "io.github.atcodecraft.featherlog"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
