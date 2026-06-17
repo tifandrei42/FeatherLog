@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../domain/daily.dart';
 import '../../domain/stats.dart';
 import '../../domain/units.dart';
+import '../motion.dart';
 import '../theme/app_theme.dart';
 
 /// A line chart of the daily-aggregated weight series.
@@ -145,6 +146,8 @@ class WeightChart extends StatelessWidget {
     return SizedBox(
       height: 220,
       child: LineChart(
+        duration: motionDuration(context, Motion.expressive),
+        curve: Curves.easeOutCubic,
         LineChartData(
           minY: minY - pad,
           maxY: maxY + pad,
