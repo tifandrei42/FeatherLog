@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../config.dart';
 import '../data/update_service.dart';
 import '../domain/version_compare.dart';
 import 'data_providers.dart';
@@ -22,7 +23,9 @@ final appVersionProvider = FutureProvider<String>((ref) async {
 /// checks are off this short-circuits to null and never touches the network —
 /// preserving the zero-network default.
 final updateCheckProvider = FutureProvider<UpdateInfo?>((ref) async {
-  if (kIsWeb) return null;
+  // Compiled out of the Play build (Google handles updates there, and steering
+  // users to a GitHub APK would violate Play policy). const → tree-shaken.
+  if (kIsWeb || !kInAppUpdateCheck) return null;
 
   final gate = ref.watch(
     settingsProvider.select((s) {

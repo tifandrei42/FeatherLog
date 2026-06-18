@@ -58,19 +58,26 @@ jobs:
           storeFile=upload-keystore.jks
           EOF
 
+      # GitHub-channel APKs: keep the in-app GitHub update check (sideload /
+      # Obtainium users rely on it). FEATHERLOG_DISTRIBUTION=github is also the
+      # default, but set it explicitly so the channel is unambiguous.
       - name: Build signed APK (per-ABI for smaller downloads)
         run: >-
           flutter build apk --release --split-per-abi
           --build-name=${{ steps.version.outputs.name }}
           --build-number=${{ steps.version.outputs.code }}
+          --dart-define=FEATHERLOG_DISTRIBUTION=github
           --obfuscate --split-debug-info=build/symbols
 
-      # App Bundle for Google Play (Play requires an .aab, not an APK).
+      # App Bundle for Google Play (Play requires an .aab, not an APK). Built
+      # with FEATHERLOG_DISTRIBUTION=play, which tree-shakes the GitHub
+      # update-check feature out (Play policy: no off-Play update prompts).
       - name: Build signed App Bundle (Google Play)
         run: >-
           flutter build appbundle --release
           --build-name=${{ steps.version.outputs.name }}
           --build-number=${{ steps.version.outputs.code }}
+          --dart-define=FEATHERLOG_DISTRIBUTION=play
           --obfuscate --split-debug-info=build/symbols
 
       - name: Generate SBOM

@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../config.dart';
 import '../data/export_service.dart';
 import '../data/import_service.dart';
 import '../data/pdf_report_service.dart';
@@ -180,22 +181,27 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => _import(context, ref),
           ),
 
-          _header(context, 'Updates'),
-          SwitchListTile(
-            secondary: const Icon(Icons.system_update_outlined),
-            title: const Text('Check for updates'),
-            subtitle: const Text(
-              'Ask GitHub for the latest version on launch. One request, no '
-              'personal data — off by default.',
+          // The in-app GitHub update check ships only in the sideload/Obtainium
+          // build — it's compiled out of the Play build, where Play handles
+          // updates and steering users elsewhere would breach Play policy.
+          if (kInAppUpdateCheck) ...[
+            _header(context, 'Updates'),
+            SwitchListTile(
+              secondary: const Icon(Icons.system_update_outlined),
+              title: const Text('Check for updates'),
+              subtitle: const Text(
+                'Ask GitHub for the latest version on launch. One request, no '
+                'personal data — off by default.',
+              ),
+              value: settings?.checkUpdates ?? false,
+              onChanged: (v) => dao.settingsDao.setCheckUpdates(v),
             ),
-            value: settings?.checkUpdates ?? false,
-            onChanged: (v) => dao.settingsDao.setCheckUpdates(v),
-          ),
-          ListTile(
-            leading: const Icon(Icons.search),
-            title: const Text('Check now'),
-            onTap: () => _checkForUpdate(context, ref),
-          ),
+            ListTile(
+              leading: const Icon(Icons.search),
+              title: const Text('Check now'),
+              onTap: () => _checkForUpdate(context, ref),
+            ),
+          ],
 
           _header(context, 'About'),
           ListTile(
